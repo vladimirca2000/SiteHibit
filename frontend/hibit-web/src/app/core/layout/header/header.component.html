@@ -1,0 +1,43 @@
+<header class="header" [class.header--menu-open]="menuOpen()">
+  <div class="container header__inner">
+    <a routerLink="/" class="header__brand" (click)="closeMenu()">
+      <span class="header__logo" aria-hidden="true">H</span>
+      <span class="header__name">{{ company.name }}</span>
+    </a>
+
+    <button
+      type="button"
+      class="header__toggle"
+      [attr.aria-expanded]="menuOpen()"
+      aria-controls="main-nav"
+      (click)="toggleMenu()"
+    >
+      <span class="sr-only">{{ menuOpen() ? 'Fechar menu' : 'Abrir menu' }}</span>
+      <span class="header__toggle-bar"></span>
+      <span class="header__toggle-bar"></span>
+      <span class="header__toggle-bar"></span>
+    </button>
+
+    <nav
+      id="main-nav"
+      class="header__nav"
+      aria-label="Navegação principal"
+      [class.header__nav--open]="menuOpen()"
+    >
+      @for (item of navItems; track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+          class="header__link"
+          (click)="closeMenu()"
+        >
+          {{ item.label }}
+        </a>
+      }
+      <a routerLink="/contato" class="btn btn-primary header__cta" (click)="closeMenu()">
+        Fale conosco
+      </a>
+    </nav>
+  </div>
+</header>

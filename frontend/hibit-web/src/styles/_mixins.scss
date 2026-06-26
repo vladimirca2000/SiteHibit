@@ -1,0 +1,27 @@
+@use 'variables' as *;
+
+@mixin section-padding {
+  padding-block: clamp(4rem, 8vw, 6rem);
+}
+
+@mixin card-surface {
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  transition: border-color $transition, box-shadow $transition, transform $transition;
+}
+
+@mixin card-hover {
+  &:hover {
+    border-color: rgba($color-green, 0.4);
+    box-shadow: $shadow;
+    transform: translateY(-2px);
+  }
+}
+
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid $color-green;
+    outline-offset: 2px;
+  }
+}

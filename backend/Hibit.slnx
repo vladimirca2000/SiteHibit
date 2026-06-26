@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Hibit.Api/Hibit.Api.csproj" />
+  <Project Path="Hibit.Application/Hibit.Application.csproj" />
+  <Project Path="Hibit.Domain/Hibit.Domain.csproj" />
+  <Project Path="Hibit.Infrastructure/Hibit.Infrastructure.csproj" />
+  <Project Path="Hibit.Tests/Hibit.Tests.csproj" />
+</Solution>

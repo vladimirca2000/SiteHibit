@@ -1,0 +1,113 @@
+<!-- Hero -->
+<section class="hero">
+  <div class="hero__bg" aria-hidden="true">
+    <div class="hero__grid-pattern"></div>
+    <div class="hero__glow"></div>
+  </div>
+  <div class="container hero__content">
+    <span class="hero__badge">{{ content.home.heroBadge }}</span>
+    <h1 class="hero__title">
+      {{ content.home.heroTitle }}
+    </h1>
+    <p class="hero__subtitle">{{ content.home.heroSubtitle }}</p>
+    <div class="hero__actions">
+      <a routerLink="/contato" class="btn btn-primary">Iniciar um projeto</a>
+      <a routerLink="/sobre" class="btn btn-secondary">Conheça a Hibit</a>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="stats" aria-label="Números da empresa">
+  <div class="container">
+    <div class="stats__grid">
+      @for (stat of content.home.stats; track stat.label) {
+        <div class="stats__item">
+          <span class="stats__value">{{ stat.value }}</span>
+          <span class="stats__label">{{ stat.label }}</span>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- Serviços -->
+<section class="section section--alt" id="servicos">
+  <div class="container">
+    <header class="section-header">
+      <span class="section-label">O que fazemos</span>
+      <h2 class="section-title">Soluções completas em software</h2>
+      <p class="section-subtitle">
+        Do planejamento à operação, entregamos tecnologia que gera resultados mensuráveis para o
+        seu negócio.
+      </p>
+    </header>
+
+    <div class="services__grid">
+      @for (service of content.home.services; track service.title; let i = $index) {
+        <article class="card card--interactive service-card">
+          <div class="service-card__icon" aria-hidden="true">
+            <span>{{ i + 1 }}</span>
+          </div>
+          <h3 class="service-card__title">{{ service.title }}</h3>
+          <p class="service-card__desc">{{ service.description }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- Processo -->
+<section class="section section--dark">
+  <div class="container">
+    <header class="section-header">
+      <span class="section-label">Como trabalhamos</span>
+      <h2 class="section-title">Processo transparente e ágil</h2>
+      <p class="section-subtitle">
+        Cada etapa é planejada para reduzir riscos e garantir entregas de valor desde o primeiro
+        sprint.
+      </p>
+    </header>
+
+    <div class="process__grid">
+      @for (step of content.home.process; track step.step) {
+        <article class="process-card">
+          <span class="process-card__step">{{ step.step }}</span>
+          <h3 class="process-card__title">{{ step.title }}</h3>
+          <p class="process-card__desc">{{ step.description }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- Tecnologias -->
+<section class="section">
+  <div class="container">
+    <header class="section-header section-header--left">
+      <span class="section-label">Stack tecnológica</span>
+      <h2 class="section-title">Ferramentas que dominamos</h2>
+      <p class="section-subtitle">
+        Utilizamos tecnologias maduras e amplamente adotadas no mercado para garantir
+        manutenibilidade e performance.
+      </p>
+    </header>
+
+    <div class="tech__list">
+      @for (tech of content.home.technologies; track tech) {
+        <span class="tech__tag">{{ tech }}</span>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-band">
+  <div class="container cta-band__inner">
+    <div class="cta-band__text">
+      <h2 class="cta-band__title">{{ content.home.ctaTitle }}</h2>
+      <p class="cta-band__subtitle">{{ content.home.ctaSubtitle }}</p>
+    </div>
+    <a routerLink="/contato" class="btn btn-dark cta-band__btn">Solicitar orçamento</a>
+  </div>
+</section>

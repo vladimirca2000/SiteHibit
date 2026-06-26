@@ -1,0 +1,44 @@
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a routerLink="/" class="footer__logo-link">
+          <span class="footer__logo" aria-hidden="true">H</span>
+          <span class="footer__name">{{ company.name }}</span>
+        </a>
+        <p class="footer__tagline">{{ company.tagline }}</p>
+        <p class="footer__description">{{ company.description }}</p>
+      </div>
+
+      <div class="footer__col">
+        <h3 class="footer__heading">Navegação</h3>
+        <nav class="footer__nav" aria-label="Links do rodapé">
+          <a routerLink="/">Início</a>
+          <a routerLink="/sobre">Sobre</a>
+          <a routerLink="/contato">Contato</a>
+          <a routerLink="/privacidade">Privacidade</a>
+        </nav>
+      </div>
+
+      <div class="footer__col">
+        <h3 class="footer__heading">Contato</h3>
+        <address class="footer__contact">
+          <p>{{ content.contact.address }}</p>
+          <p>
+            <a [href]="'mailto:' + company.email">{{ company.email }}</a>
+          </p>
+          <p>{{ content.contact.phone }}</p>
+        </address>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <p class="footer__copy">
+        &copy; {{ year }} {{ company.name }}. Todos os direitos reservados.
+      </p>
+      <p class="footer__legal">
+        Desenvolvido com foco em qualidade, segurança e performance.
+      </p>
+    </div>
+  </div>
+</footer>

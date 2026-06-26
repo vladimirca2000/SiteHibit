@@ -1,0 +1,76 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hibit_test
+          MYSQL_USER: hibit
+          MYSQL_PASSWORD: hibit
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      rabbitmq:
+        image: rabbitmq:3-management
+        env:
+          RABBITMQ_DEFAULT_USER: hibit
+          RABBITMQ_DEFAULT_PASS: hibit
+        ports:
+          - 5672:5672
+
+    env:
+      ConnectionStrings__DefaultConnection: Server=localhost;Port=3306;Database=hibit_test;User=hibit;Password=hibit;
+      RabbitMQ__Host: localhost
+      RabbitMQ__Port: 5672
+      RabbitMQ__User: hibit
+      RabbitMQ__Password: hibit
+      RabbitMQ__Queue: hibit.contact
+      RabbitMQ__VirtualHost: /
+      Encryption__Key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      Encryption__Iv: AAAAAAAAAAAAAAAAAAAAAA==
+      Jwt__Secret: ci-jwt-secret-key-minimum-32-characters-long
+      Jwt__Issuer: Hibit.Api
+      Jwt__Audience: Hibit.Web
+      Jwt__ExpirationMinutes: 60
+      AppUser__Username: hibit-app
+      AppUser__Password: hibit-app-ci
+      CORS_ORIGINS: http://localhost:4200
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/Hibit.slnx
+
+      - name: Build
+        run: dotnet build backend/Hibit.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test backend/Hibit.slnx --no-build --configuration Release --verbosity normal

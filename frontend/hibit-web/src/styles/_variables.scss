@@ -1,0 +1,48 @@
+// Paleta Hibit — branco, preto, cinza e verde
+$color-black: #0a0a0a;
+$color-black-soft: #141414;
+$color-white: #ffffff;
+$color-gray-50: #fafafa;
+$color-gray-100: #f4f4f5;
+$color-gray-200: #e4e4e7;
+$color-gray-300: #d4d4d8;
+$color-gray-400: #a1a1aa;
+$color-gray-500: #71717a;
+$color-gray-600: #52525b;
+$color-gray-700: #3f3f46;
+$color-gray-800: #27272a;
+$color-gray-900: #18181b;
+
+$color-green: #22c55e;
+$color-green-dark: #16a34a;
+$color-green-light: #4ade80;
+$color-green-muted: #dcfce7;
+$color-green-glow: rgba(34, 197, 94, 0.15);
+
+// Aliases semânticos
+$color-primary: $color-green;
+$color-primary-dark: $color-green-dark;
+$color-accent: $color-green-light;
+$color-text: $color-gray-900;
+$color-text-muted: $color-gray-500;
+$color-text-inverse: $color-white;
+$color-bg: $color-white;
+$color-bg-alt: $color-gray-50;
+$color-bg-dark: $color-black;
+$color-border: $color-gray-200;
+$color-border-dark: $color-gray-800;
+$color-error: #ef4444;
+$color-success: $color-green-dark;
+
+$font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+$font-family-display: 'Inter', system-ui, sans-serif;
+$max-content-width: 1200px;
+$header-height: 80px;
+$radius-sm: 6px;
+$radius: 10px;
+$radius-lg: 16px;
+$radius-xl: 24px;
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+$shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+$shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.12);
+$transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
