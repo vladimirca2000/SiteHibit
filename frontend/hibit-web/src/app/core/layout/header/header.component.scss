@@ -5,9 +5,15 @@
   position: sticky;
   top: 0;
   z-index: 200;
-  background: rgba($color-white, 0.92);
+  background: $color-header-bg;
   backdrop-filter: blur(12px);
   border-bottom: 1px solid $color-border;
+}
+
+.header__theme-btn {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  min-width: 74px;
 }
 
 .header__inner {
@@ -31,22 +37,16 @@
 }
 
 .header__logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 40px;
   height: 40px;
-  background: $color-green;
-  color: $color-black;
-  font-weight: 800;
-  font-size: 1.25rem;
-  border-radius: $radius-sm;
+  object-fit: contain;
+  display: block;
 }
 
 .header__name {
   font-size: 1.375rem;
   font-weight: 700;
-  color: $color-black;
+  color: $color-text;
   letter-spacing: -0.03em;
 }
 
@@ -68,7 +68,7 @@
   display: block;
   width: 22px;
   height: 2px;
-  background: $color-black;
+  background: $color-text;
   border-radius: 1px;
   transition: transform $transition, opacity $transition;
   margin-inline: auto;
@@ -113,7 +113,7 @@
 
   &:hover,
   &.active {
-    color: $color-black;
+    color: $color-text;
     text-decoration: none;
 
     &::after {
@@ -139,7 +139,7 @@
     align-items: stretch;
     gap: 0;
     padding: 1.5rem;
-    background: $color-white;
+    background: $color-surface;
     border-top: 1px solid $color-border;
     transform: translateX(100%);
     transition: transform $transition;
@@ -161,6 +161,11 @@
   }
 
   .header__cta {
+    margin-top: 1rem;
+    width: 100%;
+  }
+
+  .header__theme-btn {
     margin-top: 1rem;
     width: 100%;
   }

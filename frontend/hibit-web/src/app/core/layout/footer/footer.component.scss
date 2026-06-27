@@ -28,16 +28,10 @@
 }
 
 .footer__logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 36px;
   height: 36px;
-  background: $color-green;
-  color: $color-black;
-  font-weight: 800;
-  font-size: 1.125rem;
-  border-radius: $radius-sm;
+  object-fit: contain;
+  display: block;
 }
 
 .footer__name {

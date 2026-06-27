@@ -68,7 +68,7 @@ export const siteContent: SiteContent = {
     heroSubtitle:
       'Da arquitetura à entrega contínua, a Hibit projeta, desenvolve e evolui soluções digitais com foco em performance, segurança e experiência do usuário.',
     stats: [
-      { value: '10+', label: 'Anos de experiência' },
+      { value: '+5', label: 'Anos de experiência' },
       { value: '50+', label: 'Projetos entregues' },
       { value: '99%', label: 'Satisfação dos clientes' },
       { value: '24/7', label: 'Suporte dedicado' },
@@ -134,8 +134,9 @@ export const siteContent: SiteContent = {
       'MySQL',
       'RabbitMQ',
       'Docker',
-      'Azure',
-      'AWS',
+      'Inteligencia Artificial',
+      'Python',
+      'Consultoria',
     ],
     ctaTitle: 'Pronto para tirar seu projeto do papel?',
     ctaSubtitle: 'Conte-nos sobre o desafio. Retornamos com uma proposta clara e sem compromisso.',
@@ -145,7 +146,7 @@ export const siteContent: SiteContent = {
     pageSubtitle:
       'Uma equipe apaixonada por engenharia de software, comprometida em entregar valor real para cada cliente.',
     history:
-      'A Hibit nasceu da convicção de que software bem construído transforma negócios. Ao longo dos anos, consolidamos uma cultura de excelência técnica, transparência e parceria de longo prazo com empresas de diversos segmentos.',
+      'A Hibit nasceu da evolução de uma operação de prestação de serviços criada inicialmente para o Vladimir atuar como PJ e atender projetos sob demanda. Com o aumento da confiança dos clientes e da complexidade das entregas, essa base foi estruturada, ganhou processos, padrão técnico e posicionamento de produto. Hoje, a Hibit existe como empresa de tecnologia consolidada, focada em engenharia de software, relacionamento de longo prazo e soluções que acompanham o crescimento de cada cliente.',
     mission:
       'Desenvolver soluções digitais confiáveis que resolvam problemas reais e gerem impacto mensurável para nossos clientes.',
     vision:
@@ -182,8 +183,8 @@ export const siteContent: SiteContent = {
     title: 'Vamos conversar',
     subtitle:
       'Preencha o formulário ou entre em contato pelos canais abaixo. Respondemos em até 1 dia útil.',
-    address: 'São Paulo, SP — Brasil',
-    phone: '+55 (11) 0000-0000',
+    address: 'Rua Arilton Pinto de Almeida, 127 - Bom Sucesso/MG',
+    phone: '(35) 9.2001-4611',
     businessHours: 'Segunda a sexta, 9h às 18h',
   },
   privacy: {

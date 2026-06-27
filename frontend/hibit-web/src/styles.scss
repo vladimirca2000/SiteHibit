@@ -21,6 +21,11 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color $transition, color $transition;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 h1,
@@ -89,7 +94,7 @@ img {
 .btn-secondary {
   background: transparent;
   color: $color-text-inverse;
-  border: 1px solid rgba($color-white, 0.3);
+  border: 1px solid rgb(var(--color-white-rgb) / 0.3);
 
   &:hover:not(:disabled) {
     border-color: $color-green;
@@ -159,7 +164,7 @@ img {
 .section-title {
   font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 700;
-  color: $color-black;
+  color: $color-text;
   margin: 0 0 1rem;
 }
 
@@ -205,13 +210,13 @@ img {
   &.alert-success {
     background: $color-green-muted;
     color: $color-green-dark;
-    border: 1px solid rgba($color-green, 0.3);
+    border: 1px solid rgb(var(--color-green-rgb) / 0.3);
   }
 
   &.alert-error {
-    background: #fef2f2;
+    background: color-mix(in srgb, $color-error 16%, transparent);
     color: $color-error;
-    border: 1px solid #fecaca;
+    border: 1px solid color-mix(in srgb, $color-error 40%, transparent);
   }
 }
 

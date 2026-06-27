@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { authInitializer } from './core/auth/auth.initializer';
+import { themeInitializer } from './core/theme/theme.initializer';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -13,7 +14,12 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     {
       provide: APP_INITIALIZER,
-      useFactory: authInitializer,
+      useValue: authInitializer,
+      multi: true,
+    },
+    {
+      provide: APP_INITIALIZER,
+      useValue: themeInitializer,
       multi: true,
     },
   ],

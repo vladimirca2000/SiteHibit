@@ -14,7 +14,7 @@
 .page-hero__title {
   font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 800;
-  color: $color-black;
+  color: $color-text;
   margin: 0 0 1rem;
   letter-spacing: -0.03em;
 }
@@ -30,17 +30,24 @@
   display: grid;
   grid-template-columns: 1.4fr 1fr;
   gap: 2rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .contact__form-section {
   padding: 2rem;
+  height: 100%;
+}
+
+.contact__form-section form {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 3.25rem);
 }
 
 .contact__form-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: $color-black;
+  color: $color-text;
   margin: 0 0 1.5rem;
 }
 
@@ -114,13 +121,14 @@
 
 .contact__submit {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: auto;
 }
 
 .contact__sidebar {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr;
   gap: 1.5rem;
+  height: 100%;
 }
 
 .contact__info-card {
@@ -129,7 +137,7 @@
   h2 {
     font-size: 1.125rem;
     font-weight: 700;
-    color: $color-black;
+    color: $color-text;
     margin: 0 0 1.25rem;
   }
 }
@@ -174,11 +182,13 @@
 .contact__map {
   padding: 0;
   overflow: hidden;
+  min-height: 280px;
 
   iframe {
     display: block;
     width: 100%;
-    min-height: 260px;
+    height: 100%;
+    min-height: 280px;
     border: 0;
   }
 }
@@ -186,6 +196,14 @@
 @media (max-width: 900px) {
   .contact__grid {
     grid-template-columns: 1fr;
+  }
+
+  .contact__form-section form {
+    height: auto;
+  }
+
+  .contact__sidebar {
+    grid-template-rows: auto;
   }
 
   .field-row {

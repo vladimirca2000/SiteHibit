@@ -11,13 +11,34 @@
     <div class="about__story-text">
       <h2 class="section-title">Nossa história</h2>
       <p>{{ content.about.history }}</p>
-    </div>
-    <div class="about__story-visual" aria-hidden="true">
-      <div class="about__visual-card">
-        <span class="about__visual-icon">&#60;/&#62;</span>
-        <p>Engenharia de software com propósito</p>
+      <div class="about__timeline" aria-label="Linha do tempo da Hibit">
+        <article class="about__timeline-item">
+          <span>Origem</span>
+          <p>Atuação como prestação de serviços PJ para projetos personalizados.</p>
+        </article>
+        <article class="about__timeline-item">
+          <span>Transição</span>
+          <p>Padronização técnica, expansão do time e foco em processos escaláveis.</p>
+        </article>
+        <article class="about__timeline-item">
+          <span>Hibit hoje</span>
+          <p>Empresa de software com entregas contínuas e parceria de longo prazo.</p>
+        </article>
       </div>
     </div>
+    <figure class="about__story-visual">
+      <img
+        class="about__story-image"
+        [src]="storyImageUrl"
+        alt="Equipe de tecnologia colaborando em desenvolvimento de software"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption class="about__visual-card">
+        <span class="about__visual-icon">&#60;/&#62;</span>
+        <p>Engenharia de software com propósito</p>
+      </figcaption>
+    </figure>
   </div>
 </section>
 

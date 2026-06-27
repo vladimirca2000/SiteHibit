@@ -11,4 +11,6 @@ import { siteContent } from '../../shared/content/site-content';
 })
 export class HomeComponent {
   readonly content = siteContent;
+  readonly heroImageUrl =
+    'https://images.pexels.com/photos/6804068/pexels-photo-6804068.jpeg?auto=compress&cs=tinysrgb&w=1600';
 }

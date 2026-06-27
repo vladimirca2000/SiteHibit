@@ -19,8 +19,17 @@ public class AesEncryptionService : IEncryptionService
             throw new InvalidOperationException("Encryption key and IV must be configured.");
         }
 
-        _key = Convert.FromBase64String(settings.Key);
-        _iv = Convert.FromBase64String(settings.Iv);
+        try
+        {
+            _key = Convert.FromBase64String(settings.Key);
+            _iv = Convert.FromBase64String(settings.Iv);
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidOperationException(
+                "Encryption key and IV must be valid Base64 strings.",
+                ex);
+        }
 
         if (_key.Length != 32)
         {

@@ -50,6 +50,7 @@ export class ContactComponent {
     this.errorMessage = '';
 
     const { name, email, phone, subject, message, consentGiven } = this.form.getRawValue();
+    const normalizedPhone = this.normalizePhone(phone);
 
     this.authService
       .ensureAuthenticated()
@@ -57,7 +58,7 @@ export class ContactComponent {
         this.contactService.submit({
           name,
           email,
-          phone: phone || null,
+          phone: normalizedPhone,
           subject,
           message,
           consentGiven,
@@ -87,5 +88,37 @@ export class ContactComponent {
   hasError(controlName: keyof typeof this.form.controls): boolean {
     const control = this.form.controls[controlName];
     return control.invalid && control.touched;
+  }
+
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const masked = this.applyPhoneMask(input.value);
+    this.form.controls.phone.setValue(masked, { emitEvent: false });
+  }
+
+  private normalizePhone(phone: string): string | null {
+    const digits = phone.replace(/\D/g, '');
+    if (!digits) {
+      return null;
+    }
+    return this.applyPhoneMask(digits);
+  }
+
+  private applyPhoneMask(value: string): string {
+    const digits = value.replace(/\D/g, '').slice(0, 11);
+
+    if (digits.length <= 2) {
+      return digits;
+    }
+
+    if (digits.length <= 6) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    }
+
+    if (digits.length <= 10) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    }
+
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   }
 }

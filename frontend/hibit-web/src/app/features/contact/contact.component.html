@@ -40,7 +40,15 @@
         <div class="field-row">
           <div class="field">
             <label for="phone">Telefone</label>
-            <input id="phone" type="tel" formControlName="phone" autocomplete="tel" />
+            <input
+              id="phone"
+              type="tel"
+              formControlName="phone"
+              autocomplete="tel"
+              inputmode="numeric"
+              placeholder="(35) 92001-4611"
+              (input)="onPhoneInput($event)"
+            />
           </div>
 
           <div class="field">

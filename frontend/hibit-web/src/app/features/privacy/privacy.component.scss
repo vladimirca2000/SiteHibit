@@ -13,7 +13,7 @@
 .page-hero__title {
   font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 800;
-  color: $color-black;
+  color: $color-text;
   margin: 0 0 1rem;
   letter-spacing: -0.03em;
 }
@@ -37,7 +37,7 @@
   h2 {
     font-size: 1.125rem;
     font-weight: 700;
-    color: $color-black;
+    color: $color-text;
     margin: 0 0 0.75rem;
   }
 
