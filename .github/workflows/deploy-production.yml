@@ -137,15 +137,50 @@ jobs:
 
       - name: Prepare deploy directories
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH_WWW: ${{ secrets.DEPLOY_PATH_WWW }}
+          DEPLOY_PATH_API: ${{ secrets.DEPLOY_PATH_API }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          envs: DEPLOY_PATH_WWW,DEPLOY_PATH_API
           script: |
-            mkdir -p "${{ secrets.DEPLOY_PATH_WWW }}" "${{ secrets.DEPLOY_PATH_API }}"
-            find "${{ secrets.DEPLOY_PATH_WWW }}" -mindepth 1 -delete
-            find "${{ secrets.DEPLOY_PATH_API }}" -mindepth 1 -delete
+            set -euo pipefail
+
+            validate_deploy_path() {
+              local path="$1"
+              local name="$2"
+              if [ -z "$path" ]; then
+                echo "ERROR: $name is empty" >&2
+                exit 1
+              fi
+              if [ "$path" = "/" ]; then
+                echo "ERROR: $name cannot be filesystem root" >&2
+                exit 1
+              fi
+              case "$path" in
+                /*) ;;
+                *)
+                  echo "ERROR: $name must be an absolute path (got: $path)" >&2
+                  exit 1
+                  ;;
+              esac
+              case "$path" in
+                *..*)
+                  echo "ERROR: $name must not contain '..'" >&2
+                  exit 1
+                  ;;
+              esac
+            }
+
+            validate_deploy_path "$DEPLOY_PATH_WWW" "DEPLOY_PATH_WWW"
+            validate_deploy_path "$DEPLOY_PATH_API" "DEPLOY_PATH_API"
+
+            mkdir -p "$DEPLOY_PATH_WWW" "$DEPLOY_PATH_API"
+            find "$DEPLOY_PATH_WWW" -mindepth 1 -maxdepth 1 -delete
+            find "$DEPLOY_PATH_API" -mindepth 1 -maxdepth 1 -delete
 
       - name: Deploy frontend to /www/
         uses: appleboy/scp-action@v0.1.7

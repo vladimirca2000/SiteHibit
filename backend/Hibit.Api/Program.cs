@@ -67,13 +67,19 @@ builder.Services.AddCors(options =>
             policy.WithOrigins(origins)
                 .AllowAnyHeader()
                 .AllowAnyMethod();
+            return;
         }
-        else
+
+        if (builder.Environment.IsDevelopment())
         {
             policy.AllowAnyOrigin()
                 .AllowAnyHeader()
                 .AllowAnyMethod();
+            return;
         }
+
+        throw new InvalidOperationException(
+            "CORS_ORIGINS must be configured in non-Development environments.");
     });
 });
 
