@@ -35,26 +35,10 @@ docker compose -f docker/docker-compose.yml ps
 |-----------|------------|-------|
 | Frontend Angular | VS Code — `npm start` em `frontend/hibit-web` | 4200 |
 | Backend .NET | Visual Studio — projeto `Hibit.Api` | 5000 |
-| MySQL + RabbitMQ | Docker no WSL | 3306 / 5672 |
+| MySQL | Docker no WSL | 3306 |
+| RabbitMQ | Docker no WSL | 5672 / 15672 (UI) |
 
-Se o backend no Visual Studio não conectar ao MySQL/RabbitMQ no WSL, use o IP do WSL na connection string (ver abaixo).
-
-### Se o backend no Windows não conectar ao MySQL/RabbitMQ no WSL
-
-1. Confirme que os containers estão rodando no WSL: `docker compose -f docker/docker-compose.yml ps`
-2. No WSL, teste: `curl -s -o /dev/null -w "%{http_code}" http://localhost:15672` (RabbitMQ UI)
-3. Obtenha o IP do WSL:
-
-   ```bash
-   hostname -I | awk '{print $1}'
-   ```
-
-4. No `.env` / `appsettings.Development.json` do Windows, troque `localhost` pelo IP do WSL na connection string e no RabbitMQ, por exemplo:
-
-   ```
-   Server=172.x.x.x;Port=3306;...
-   RabbitMQ__Host=172.x.x.x
-   ```
+Se o backend no Visual Studio não conectar ao MySQL no WSL, use o IP do WSL na connection string (ver `docker/README.md`).
 
 ### Ordem de subida
 
@@ -72,15 +56,7 @@ WSL: Docker (MySQL + RabbitMQ) → Visual Studio Backend (:5000) → VS Code Fro
    cp .env.example .env
    ```
 
-   Edite `.env` com valores locais. Para gerar chave AES-256 e IV:
-
-   ```bash
-   # PowerShell — chave (32 bytes) e IV (16 bytes) em Base64
-   [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
-   [Convert]::ToBase64String((1..16 | ForEach-Object { Get-Random -Maximum 256 }))
-   ```
-
-3. Suba MySQL e RabbitMQ **no terminal WSL** (ver seção acima):
+3. Suba MySQL **no terminal WSL**:
 
    ```bash
    docker compose -f docker/docker-compose.yml --env-file .env up -d
@@ -130,52 +106,113 @@ SiteHibit/
 ├── backend/          # .NET 8 Clean Architecture
 ├── frontend/         # Angular (hibit-web)
 ├── docker/           # Docker Compose (MySQL + RabbitMQ)
+├── scripts/          # Publish local
 ├── .github/workflows # CI/CD
 └── .agent.md         # Especificação do projeto
 ```
 
+## Branches e fluxo de deploy
+
+| Branch | Uso |
+|--------|-----|
+| `main` | Desenvolvimento e PRs |
+| `master` | Produção — merge dispara deploy automático |
+
+Fluxo: PR **`main` → `master`** (aprovado e mergeado) → GitHub Actions publica na King.host.
+
+Repositório: `git@github.com:vladimirca2000/SiteHibit.git`
+
 ## Deploy (King.host)
 
-A API .NET serve o frontend Angular a partir de `wwwroot` (SPA com fallback para `index.html`).
+Em produção, frontend e API ficam em diretórios separados:
 
-### Script automatizado
+| Destino | Conteúdo |
+|---------|----------|
+| `/www/` | Angular (site estático) |
+| `/API/` | ASP.NET Core 8 (API REST) |
 
-**Windows (PowerShell):**
+O frontend chama a API em `/API` (ex.: `/API/api/auth/login`).
+
+### Scripts de publish local
+
+**Frontend:**
 
 ```powershell
-./scripts/publish-web-to-api.ps1
+./scripts/publish-frontend.ps1
 ```
-
-**Linux/macOS:**
 
 ```bash
-chmod +x scripts/publish-web-to-api.sh
-./scripts/publish-web-to-api.sh
+chmod +x scripts/publish-frontend.sh
+./scripts/publish-frontend.sh
 ```
 
-O script:
+Gera `publish/www/`.
 
-1. Compila o Angular em modo production
-2. Copia `dist/hibit-web/browser/*` para `backend/Hibit.Api/wwwroot/`
-3. Executa `dotnet publish` e gera a pasta `publish/` na raiz do repositório
+**API:**
 
-### Publicação manual na King.host
-
-1. Execute o script de publish ou siga os passos manuais abaixo.
-2. Faça upload do conteúdo de `publish/` para a hospedagem Windows (IIS / ASP.NET Core).
-3. Configure no painel da King.host todas as variáveis listadas em `.env.example`:
-   - `ConnectionStrings__DefaultConnection`
-   - `RabbitMQ__*` (host, porta, usuário, senha, fila)
-   - `Encryption__Key` e `Encryption__Iv` (AES-256, Base64)
-   - `CORS_ORIGINS` (domínio de produção, ex.: `https://www.hibit.com.br`)
-4. Garanta HTTPS ativo e, se possível, Cloudflare na frente do domínio.
-
-### Passos manuais (alternativa)
+```powershell
+./scripts/publish-api.ps1
+```
 
 ```bash
-cd frontend/hibit-web && npm ci && npm run build -- --configuration=production
-# Copie dist/hibit-web/browser/* para backend/Hibit.Api/wwwroot/
-cd backend && dotnet publish Hibit.Api/Hibit.Api.csproj -c Release -o ../publish
+chmod +x scripts/publish-api.sh
+./scripts/publish-api.sh
 ```
 
-Consulte `.env.example` para a lista completa de variáveis necessárias em produção.
+Gera `publish/api/`.
+
+### GitHub Actions (deploy automático)
+
+Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)
+
+Dispara em **push na branch `master`** (após merge do PR de `main`).
+
+**Secrets obrigatórios** (Settings → Secrets and variables → Actions):
+
+| Secret | Descrição |
+|--------|-----------|
+| `SSH_HOST` | Host SSH da King.host |
+| `SSH_USER` | Usuário SSH |
+| `SSH_PRIVATE_KEY` | Chave privada de deploy |
+| `SSH_PORT` | Porta SSH (ex.: `22`) |
+| `DEPLOY_PATH_WWW` | Caminho do frontend (ex.: `/www/`) |
+| `DEPLOY_PATH_API` | Caminho da API (ex.: `/API/`) |
+| `APP_USER_PASSWORD` | Senha do usuário de app (build Angular) |
+
+### Variáveis no painel King.host (API em `/API/`)
+
+Configure no painel da hospedagem — **senhas apenas no painel, nunca no Git**.
+
+Hosts e estrutura estão em `backend/Hibit.Api/appsettings.Production.json`. Sobrescreva os valores sensíveis com variáveis de ambiente:
+
+```
+ConnectionStrings__DefaultConnection=Server=mysql.hibit.com.br;Port=3306;Database=hibit;User=hibit;Password=SUA_SENHA_MYSQL
+RabbitMQ__Host=rabbit.hibit.com.br
+RabbitMQ__Port=5672
+RabbitMQ__User=admin
+RabbitMQ__Password=SUA_SENHA_RABBIT
+RabbitMQ__Queue=hibit.contact
+RabbitMQ__VirtualHost=/
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_PATHBASE=/API
+CORS_ORIGINS=https://hibit.com.br,https://www.hibit.com.br
+Jwt__Secret=***
+Jwt__Issuer=Hibit.Api
+Jwt__Audience=Hibit.Web
+AppUser__Username=hibit-app
+AppUser__Password=***
+Encryption__Key=***
+Encryption__Iv=***
+```
+
+### Checklist King.host
+
+1. Habilitar SSH e adicionar a chave pública (par de `SSH_PRIVATE_KEY`)
+2. Confirmar paths `/www/` e `/API/`
+3. Configurar aplicação ASP.NET Core 8 em `/API/`
+4. MySQL: `mysql.hibit.com.br` / database `hibit` / user `hibit`
+5. RabbitMQ: `rabbit.hibit.com.br` / user `admin` / fila `hibit.contact`
+6. HTTPS ativo no domínio
+7. Criar branch `master` no GitHub (se ainda não existir) e proteger com CI obrigatório
+
+Consulte `.env.example` para a lista completa de variáveis.

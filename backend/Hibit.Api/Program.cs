@@ -59,9 +59,21 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultCors", policy =>
     {
-        policy.AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        var origins = builder.Configuration["CORS_ORIGINS"]?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (origins is { Length: > 0 })
+        {
+            policy.WithOrigins(origins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
     });
 });
 
@@ -117,6 +129,12 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+var pathBase = builder.Configuration["ASPNETCORE_PATHBASE"];
+if (!string.IsNullOrWhiteSpace(pathBase))
+{
+    app.UsePathBase(pathBase);
+}
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
@@ -206,13 +224,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
-    app.MapFallbackToFile("index.html");
-}
 
 app.Run();
 

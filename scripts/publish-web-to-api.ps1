@@ -1,4 +1,5 @@
 #!/usr/bin/env pwsh
+# Deprecated: use publish-frontend.ps1 and publish-api.ps1 for split deployment (/www/ + /API/).
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 

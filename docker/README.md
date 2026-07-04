@@ -51,7 +51,7 @@ docker compose -f docker/docker-compose.yml down -v
 
 ## Backend no Windows + Docker no WSL
 
-Se o Visual Studio não conectar em `localhost:3306`:
+Se o Visual Studio não conectar em `localhost:3306` ou `localhost:5672`:
 
 ```bash
 # No WSL — obter IP

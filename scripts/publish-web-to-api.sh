@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Deprecated: use publish-frontend.sh and publish-api.sh for split deployment (/www/ + /API/).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

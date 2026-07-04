@@ -1,0 +1,172 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hibit_test
+          MYSQL_USER: hibit
+          MYSQL_PASSWORD: hibit
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      rabbitmq:
+        image: rabbitmq:3-management
+        env:
+          RABBITMQ_DEFAULT_USER: hibit
+          RABBITMQ_DEFAULT_PASS: hibit
+        ports:
+          - 5672:5672
+
+    env:
+      ConnectionStrings__DefaultConnection: Server=localhost;Port=3306;Database=hibit_test;User=hibit;Password=hibit;
+      RabbitMQ__Host: localhost
+      RabbitMQ__Port: 5672
+      RabbitMQ__User: hibit
+      RabbitMQ__Password: hibit
+      RabbitMQ__Queue: hibit.contact
+      RabbitMQ__VirtualHost: /
+      Encryption__Key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      Encryption__Iv: AAAAAAAAAAAAAAAAAAAAAA==
+      Jwt__Secret: ci-jwt-secret-key-minimum-32-characters-long
+      Jwt__Issuer: Hibit.Api
+      Jwt__Audience: Hibit.Web
+      Jwt__ExpirationMinutes: 60
+      AppUser__Username: hibit-app
+      AppUser__Password: hibit-app-ci
+      CORS_ORIGINS: http://localhost:4200
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/Hibit.slnx
+
+      - name: Build
+        run: dotnet build backend/Hibit.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test backend/Hibit.slnx --no-build --configuration Release --verbosity normal
+
+  test-frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend/hibit-web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/hibit-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production
+        run: npm run build -- --configuration=production
+
+  deploy:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/hibit-web/package-lock.json
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Inject production app user password
+        working-directory: frontend/hibit-web
+        env:
+          APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
+        run: |
+          node -e "const fs=require('fs');const p='src/environments/environment.prod.ts';fs.writeFileSync(p,fs.readFileSync(p,'utf8').replace('REPLACE_IN_BUILD',process.env.APP_USER_PASSWORD||''));"
+
+      - name: Build frontend
+        working-directory: frontend/hibit-web
+        run: |
+          npm ci
+          npm run build -- --configuration=production
+
+      - name: Publish API
+        run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
+
+      - name: Prepare frontend artifacts
+        run: |
+          mkdir -p publish/www
+          cp -r frontend/hibit-web/dist/hibit-web/browser/* publish/www/
+
+      - name: Prepare deploy directories
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            mkdir -p "${{ secrets.DEPLOY_PATH_WWW }}" "${{ secrets.DEPLOY_PATH_API }}"
+            find "${{ secrets.DEPLOY_PATH_WWW }}" -mindepth 1 -delete
+            find "${{ secrets.DEPLOY_PATH_API }}" -mindepth 1 -delete
+
+      - name: Deploy frontend to /www/
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: publish/www/*
+          target: ${{ secrets.DEPLOY_PATH_WWW }}
+          strip_components: 2
+          overwrite: true
+
+      - name: Deploy API to /API/
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: publish/api/*
+          target: ${{ secrets.DEPLOY_PATH_API }}
+          strip_components: 2
+          overwrite: true

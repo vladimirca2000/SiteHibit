@@ -20,6 +20,11 @@ export interface SiteContent {
     tagline: string;
     description: string;
     email: string;
+    whatsapp: {
+      phone: string;
+      url: string;
+      label: string;
+    };
   };
   home: {
     heroBadge: string;
@@ -61,6 +66,11 @@ export const siteContent: SiteContent = {
     description:
       'Somos uma empresa de tecnologia especializada em transformar ideias em produtos digitais robustos, escaláveis e seguros.',
     email: 'contato@hibit.com.br',
+    whatsapp: {
+      phone: '5535920014611',
+      url: 'https://wa.me/5535920014611',
+      label: 'Fale conosco pelo WhatsApp',
+    },
   },
   home: {
     heroBadge: 'Engenharia de software de ponta',

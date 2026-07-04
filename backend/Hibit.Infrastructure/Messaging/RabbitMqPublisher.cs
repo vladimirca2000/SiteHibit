@@ -20,11 +20,11 @@ public class RabbitMqPublisher : IMessagePublisher, IDisposable
         _logger = logger;
     }
 
-    public Task PublishAsync(string encryptedPayload, CancellationToken cancellationToken = default)
+    public Task PublishAsync(string payload, CancellationToken cancellationToken = default)
     {
         EnsureChannel();
 
-        var body = Encoding.UTF8.GetBytes(encryptedPayload);
+        var body = Encoding.UTF8.GetBytes(payload);
         var properties = _channel!.CreateBasicProperties();
         properties.ContentType = "application/octet-stream";
         properties.DeliveryMode = 2;
