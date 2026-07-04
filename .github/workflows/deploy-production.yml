@@ -3,10 +3,14 @@ name: Deploy Production
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-production
   cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   test-backend:
@@ -135,73 +139,32 @@ jobs:
           mkdir -p publish/www
           cp -r frontend/hibit-web/dist/hibit-web/browser/* publish/www/
 
-      - name: Prepare deploy directories
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Publish release-www branch for King.host Git Webhook
         env:
-          DEPLOY_PATH_WWW: ${{ secrets.DEPLOY_PATH_WWW }}
-          DEPLOY_PATH_API: ${{ secrets.DEPLOY_PATH_API }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          envs: DEPLOY_PATH_WWW,DEPLOY_PATH_API
-          script: |
-            set -euo pipefail
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd publish/www
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Deploy frontend to /www/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          git branch -M release-www
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git push -f origin release-www
 
-            validate_deploy_path() {
-              local path="$1"
-              local name="$2"
-              if [ -z "$path" ]; then
-                echo "ERROR: $name is empty" >&2
-                exit 1
-              fi
-              if [ "$path" = "/" ]; then
-                echo "ERROR: $name cannot be filesystem root" >&2
-                exit 1
-              fi
-              case "$path" in
-                /*) ;;
-                *)
-                  echo "ERROR: $name must be an absolute path (got: $path)" >&2
-                  exit 1
-                  ;;
-              esac
-              case "$path" in
-                *..*)
-                  echo "ERROR: $name must not contain '..'" >&2
-                  exit 1
-                  ;;
-              esac
-            }
-
-            validate_deploy_path "$DEPLOY_PATH_WWW" "DEPLOY_PATH_WWW"
-            validate_deploy_path "$DEPLOY_PATH_API" "DEPLOY_PATH_API"
-
-            mkdir -p "$DEPLOY_PATH_WWW" "$DEPLOY_PATH_API"
-            find "$DEPLOY_PATH_WWW" -mindepth 1 -maxdepth 1 -delete
-            find "$DEPLOY_PATH_API" -mindepth 1 -maxdepth 1 -delete
-
-      - name: Deploy frontend to /www/
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: publish/www/*
-          target: ${{ secrets.DEPLOY_PATH_WWW }}
-          strip_components: 2
-          overwrite: true
-
-      - name: Deploy API to /API/
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: publish/api/*
-          target: ${{ secrets.DEPLOY_PATH_API }}
-          strip_components: 2
-          overwrite: true
+      - name: Publish release-api branch for King.host Git Webhook
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd publish/api
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Deploy API to /API/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          git branch -M release-api
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git push -f origin release-api

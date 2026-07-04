@@ -161,23 +161,35 @@ chmod +x scripts/publish-api.sh
 
 Gera `publish/api/`.
 
-### GitHub Actions (deploy automático)
+### GitHub Actions + King.host Git Webhook
 
 Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)
 
 Dispara em **push na branch `master`** (após merge do PR de `main`).
 
-**Secrets obrigatórios** (Settings → Secrets and variables → Actions):
+O pipeline **compila** Angular e API e publica branches de release no GitHub:
+
+| Branch | Conteúdo | Diretório King.host |
+|--------|----------|---------------------|
+| `release-www` | Angular build (estático) | `/www/` |
+| `release-api` | `dotnet publish` | `/API/` |
+
+A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://wiki.kinghost.net/#/artigo/como-integrar-github-ao-painel-kinghost)).
+
+**Secret obrigatório** (Settings → Secrets and variables → Actions):
 
 | Secret | Descrição |
 |--------|-----------|
-| `SSH_HOST` | Host SSH da King.host |
-| `SSH_USER` | Usuário SSH |
-| `SSH_PRIVATE_KEY` | Chave privada de deploy |
-| `SSH_PORT` | Porta SSH (ex.: `22`) |
-| `DEPLOY_PATH_WWW` | Caminho do frontend (ex.: `/www/`) |
-| `DEPLOY_PATH_API` | Caminho da API (ex.: `/API/`) |
 | `APP_USER_PASSWORD` | Senha do usuário de app (build Angular) |
+
+### Configurar Git Webhook na King.host (2 integrações)
+
+1. Painel → **Git Webhook** → **Habilitar** → **Conectar ao GitHub**
+2. Autorize o repositório `vladimirca2000/SiteHibit`
+3. **Integração 1 (frontend):** branch `release-www`, diretório `/www/` (deve estar vazio na 1ª vez)
+4. **Integração 2 (API):** branch `release-api`, diretório `/API/` (deve estar vazio na 1ª vez)
+
+A branch `master` continua com o código-fonte; o deploy compilado vai para `release-www` e `release-api`.
 
 ### Variáveis no painel King.host (API em `/API/`)
 
@@ -207,12 +219,12 @@ Encryption__Iv=***
 
 ### Checklist King.host
 
-1. Habilitar SSH e adicionar a chave pública (par de `SSH_PRIVATE_KEY`)
-2. Confirmar paths `/www/` e `/API/`
-3. Configurar aplicação ASP.NET Core 8 em `/API/`
-4. MySQL: `mysql.hibit.com.br` / database `hibit` / user `hibit`
-5. RabbitMQ: `rabbit.hibit.com.br` / user `admin` / fila `hibit.contact`
-6. HTTPS ativo no domínio
-7. Criar branch `master` no GitHub (se ainda não existir) e proteger com CI obrigatório
+1. Configurar **Git Webhook** (GitHub) — ver [wiki King.host](https://wiki.kinghost.net/#/artigo/como-integrar-github-ao-painel-kinghost)
+2. Webhook frontend: branch `release-www` → `/www/`
+3. Webhook API: branch `release-api` → `/API/`
+4. Configurar aplicação ASP.NET Core 8 em `/API/`
+5. MySQL: `mysql.hibit.com.br` / database `hibit` / user `hibit`
+6. RabbitMQ: `rabbit.hibit.com.br` / user `admin` / fila `hibit.contact`
+7. HTTPS ativo no domínio
 
 Consulte `.env.example` para a lista completa de variáveis.
