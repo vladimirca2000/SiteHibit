@@ -9,6 +9,9 @@ import { ThemeService } from '../../theme/theme.service';
   imports: [RouterLink, RouterLinkActive],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
+  host: {
+    '[class.header-host--menu-open]': 'menuOpen()',
+  },
 })
 export class HeaderComponent {
   private readonly themeService = inject(ThemeService);

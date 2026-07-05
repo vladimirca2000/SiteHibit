@@ -174,7 +174,7 @@ O pipeline **compila** Angular e API e publica branches de release no GitHub:
 | Branch | Conteúdo | Destino King.host |
 |--------|----------|-------------------|
 | `release-www` | Angular build (estático) | `/www/` |
-| `release-api` | `dotnet publish` | `/www/API/` |
+| `release-api` | `dotnet publish` + `web.config` IIS | `/API/` (raiz FTP) |
 
 A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)).
 
