@@ -124,12 +124,14 @@ Repositório: `git@github.com:vladimirca2000/SiteHibit.git`
 
 ## Deploy (King.host)
 
-Em produção, frontend e API ficam sob o mesmo domínio `hibit.com.br`:
+Em produção na King.host (Windows), frontend e API ficam em **pastas irmãs** na raiz FTP:
 
 | Caminho FTP | Conteúdo | URL pública |
 |-------------|----------|-------------|
 | `/www/` | Angular (site estático) | `https://hibit.com.br/` |
-| `/www/API/` | ASP.NET Core 8 (API REST) | `https://hibit.com.br/API/` |
+| `/API/` | ASP.NET Core 8 (API REST) | `https://hibit.com.br/API/` |
+
+A API **não** fica dentro de `/www/`. No painel, registre ASP.NET Core no caminho `\API`.
 
 O frontend chama a API em `/API` (ex.: `/API/api/auth/login`, `/API/health`).
 
@@ -172,7 +174,7 @@ O pipeline **compila** Angular e API e publica branches de release no GitHub:
 | Branch | Conteúdo | Destino King.host |
 |--------|----------|-------------------|
 | `release-www` | Angular build (estático) | `/www/` |
-| `release-api` | `dotnet publish` | `/www/API/` |
+| `release-api` | `dotnet publish` | `/API/` |
 
 A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)).
 
@@ -187,11 +189,11 @@ A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([doc
 1. Painel → **Git Webhook** → **Habilitar** → **Conectar ao GitHub**
 2. Autorize o repositório `vladimirca2000/SiteHibit`
 3. **Integração 1 (frontend):** branch `release-www`, diretório `/www/`
-4. **Integração 2 (API):** branch `release-api`, diretório `/www/API/`
+4. **Integração 2 (API):** branch `release-api`, diretório **`/API/`** (fora de `/www/`, pasta vazia na 1ª vez)
 
 A branch `master` continua com o código-fonte; o deploy compilado vai para `release-www` e `release-api`.
 
-### Variáveis no painel King.host (API em `/www/API/`)
+### Variáveis no painel King.host (API em `/API/`)
 
 Configure no painel da hospedagem — **senhas apenas no painel, nunca no Git**.
 
@@ -221,8 +223,8 @@ Encryption__Iv=***
 
 1. Configurar **Git Webhook** (GitHub) — ver [wiki King.host](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)
 2. Webhook frontend: `release-www` → `/www/`
-3. Webhook API: `release-api` → `/www/API/`
-4. Configurar ASP.NET Core 8 em **hibit.com.br** (caminho `\www\API`)
+3. Webhook API: `release-api` → **`/API/`**
+4. Configurar ASP.NET Core 8 em **hibit.com.br** (caminho **`\API`**, não `\www\API`)
 5. MySQL: `mysql.hibit.com.br` / database `hibit` / user `hibit`
 6. RabbitMQ: `rabbit.hibit.com.br` / user `admin` / fila `hibit.contact`
 7. HTTPS ativo no domínio
