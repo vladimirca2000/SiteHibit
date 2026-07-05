@@ -98,10 +98,9 @@ jobs:
       - name: Build production
         run: npm run build -- --configuration=production
 
-  deploy:
+  deploy-www:
     needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - uses: actions/checkout@v4
@@ -112,11 +111,6 @@ jobs:
           node-version: '20'
           cache: npm
           cache-dependency-path: frontend/hibit-web/package-lock.json
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
 
       - name: Inject production app user password
         working-directory: frontend/hibit-web
@@ -131,19 +125,6 @@ jobs:
           npm ci
           npm run build -- --configuration=production
 
-      - name: Publish API
-        run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
-
-      - name: Generate production web.config for IIS
-        env:
-          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
-          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-          ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
-        run: bash scripts/generate-api-webconfig.sh publish/api
-
       - name: Prepare frontend artifacts
         run: |
           mkdir -p publish/www
@@ -154,15 +135,7 @@ jobs:
           set -euo pipefail
           test -f publish/www/index.html
           test -f publish/www/web.config
-          echo "release-www: index.html e web.config (SPA) OK"
-
-      - name: Verify api artifacts
-        run: |
-          set -euo pipefail
-          test -f publish/api/Hibit.Api.dll
-          test -f publish/api/web.config
-          test -d publish/api/logs
-          echo "release-api: Hibit.Api.dll, web.config (IIS) e logs/ OK"
+          echo "release-www -> /www/: index.html e web.config (SPA Angular) OK"
 
       - name: Publish release-www branch
         working-directory: publish/www
@@ -179,6 +152,62 @@ jobs:
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push -f origin release-www
 
+  deploy-api:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish API
+        run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
+
+      - name: Validate production secrets
+        env:
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in MYSQL_PASSWORD RABBITMQ_PASSWORD JWT_SECRET APP_USER_PASSWORD ENCRYPTION_KEY ENCRYPTION_IV; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Secret ausente no environment production: ${name}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Configure os secrets em Settings -> Environments -> production -> Environment secrets"
+            exit 1
+          fi
+
+      - name: Generate production web.config for IIS
+        env:
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
+        run: bash scripts/generate-api-webconfig.sh publish/api
+
+      - name: Verify api artifacts
+        run: |
+          set -euo pipefail
+          test -f publish/api/Hibit.Api.dll
+          test -f publish/api/web.config
+          test -d publish/api/logs
+          echo "release-api -> /API/: Hibit.Api.dll, web.config (IIS) e logs/ OK"
+
       - name: Publish release-api branch
         working-directory: publish/api
         env:
@@ -194,6 +223,11 @@ jobs:
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push -f origin release-api
 
+  verify:
+    needs: [deploy-www, deploy-api]
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Verify production endpoints
         run: |
           set -euo pipefail
