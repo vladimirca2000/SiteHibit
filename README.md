@@ -178,11 +178,18 @@ O pipeline **compila** Angular e API e publica branches de release no GitHub:
 
 A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)).
 
-**Secret obrigatório** (Settings → Secrets and variables → Actions):
+**Secrets** (Settings → Environments → **production** → Environment secrets):
 
 | Secret | Descrição |
 |--------|-----------|
-| `APP_USER_PASSWORD` | Senha do usuário de app (build Angular) |
+| `APP_USER_PASSWORD` | Senha do usuário `hibit-app` (login no site). Mesmo valor usado no seed do banco e no build Angular. Padrão: `hibit-app-2026` |
+| `MYSQL_PASSWORD` | Senha MySQL (`hibit` em `mysql.hibit.com.br`) |
+| `RABBITMQ_PASSWORD` | Senha RabbitMQ (`admin` em `rabbit.hibit.com.br`) |
+| `JWT_SECRET` | Chave JWT (mín. 32 caracteres) |
+| `ENCRYPTION_KEY` | AES-256 key (Base64, 32 bytes) |
+| `ENCRYPTION_IV` | AES IV (Base64, 16 bytes) |
+
+**Senha da aplicação (`APP_USER_PASSWORD`):** a migration só cria a tabela `usuarios`. Na **primeira subida** da API em produção, o `DatabaseInitializer` grava o usuário `hibit-app` com hash da senha configurada em `AppUser__Password` (via `web.config`). O frontend usa o **mesmo valor** (injetado no build). Não é senha da King.host.
 
 ### Configurar Git Webhook na King.host (2 integrações)
 
