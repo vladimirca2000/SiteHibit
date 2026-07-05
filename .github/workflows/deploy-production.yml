@@ -196,5 +196,5 @@ jobs:
           printf '%s\n' "${GITHUB_SHA}" > .deploy-marker
 
           git add -A
-          git commit -m "Deploy API to api.hibit.com.br ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          git commit -m "Deploy API to /www/API/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
           git push origin "$BRANCH"
