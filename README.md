@@ -115,10 +115,10 @@ SiteHibit/
 
 | Branch | Uso |
 |--------|-----|
-| `main` | Desenvolvimento e PRs |
+| `Development` | Desenvolvimento e PRs |
 | `master` | Produção — merge dispara deploy automático |
 
-Fluxo: PR **`main` → `master`** (aprovado e mergeado) → GitHub Actions publica na King.host.
+Fluxo: PR **`Development` → `master`** (aprovado e mergeado) → GitHub Actions publica na King.host.
 
 Repositório: `git@github.com:vladimirca2000/SiteHibit.git`
 
@@ -165,7 +165,7 @@ Gera `publish/api/`.
 
 Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)
 
-Dispara em **push na branch `master`** (após merge do PR de `main`).
+Dispara em **push na branch `master`** (após merge do PR de `Development`).
 
 O pipeline **compila** Angular e API e publica branches de release no GitHub:
 
