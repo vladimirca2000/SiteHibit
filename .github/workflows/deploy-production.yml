@@ -144,27 +144,65 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          cd publish/www
-          git init
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          BRANCH="release-www"
+          ARTIFACT_DIR="${GITHUB_WORKSPACE}/publish/www"
+          TARGET_DIR="$(mktemp -d)"
+
+          if git clone --branch "$BRANCH" --single-branch "$REMOTE" "$TARGET_DIR"; then
+            cd "$TARGET_DIR"
+          else
+            git init "$TARGET_DIR"
+            cd "$TARGET_DIR"
+            git checkout -b "$BRANCH"
+            git remote add origin "$REMOTE"
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
+
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r "$ARTIFACT_DIR"/. .
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No frontend changes to publish"
+            exit 0
+          fi
+
           git commit -m "Deploy frontend to /www/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-          git branch -M release-www
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          git push -f origin release-www
+          git push origin "$BRANCH"
 
       - name: Publish release-api branch for King.host Git Webhook
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          cd publish/api
-          git init
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          BRANCH="release-api"
+          ARTIFACT_DIR="${GITHUB_WORKSPACE}/publish/api"
+          TARGET_DIR="$(mktemp -d)"
+
+          if git clone --branch "$BRANCH" --single-branch "$REMOTE" "$TARGET_DIR"; then
+            cd "$TARGET_DIR"
+          else
+            git init "$TARGET_DIR"
+            cd "$TARGET_DIR"
+            git checkout -b "$BRANCH"
+            git remote add origin "$REMOTE"
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
+
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r "$ARTIFACT_DIR"/. .
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No API changes to publish"
+            exit 0
+          fi
+
           git commit -m "Deploy API to /API/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-          git branch -M release-api
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          git push -f origin release-api
+          git push origin "$BRANCH"
