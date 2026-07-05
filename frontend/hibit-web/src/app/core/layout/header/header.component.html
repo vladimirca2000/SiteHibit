@@ -17,13 +17,15 @@
       <span class="header__toggle-bar"></span>
       <span class="header__toggle-bar"></span>
     </button>
+  </div>
 
-    <nav
-      id="main-nav"
-      class="header__nav"
-      aria-label="Navegação principal"
-      [class.header__nav--open]="menuOpen()"
-    >
+  <nav
+    id="main-nav"
+    class="header__nav"
+    aria-label="Navegação principal"
+    [class.header__nav--open]="menuOpen()"
+  >
+    <div class="container header__nav-inner">
       @for (item of navItems; track item.path) {
         <a
           [routerLink]="item.path"
@@ -46,6 +48,6 @@
       <a routerLink="/contato" class="btn btn-primary header__cta" (click)="closeMenu()">
         Fale conosco
       </a>
-    </nav>
-  </div>
+    </div>
+  </nav>
 </header>
