@@ -163,13 +163,9 @@ jobs:
 
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cp -r "$ARTIFACT_DIR"/. .
+          printf '%s\n' "${GITHUB_SHA}" > .deploy-marker
 
           git add -A
-          if git diff --cached --quiet; then
-            echo "No frontend changes to publish"
-            exit 0
-          fi
-
           git commit -m "Deploy frontend to /www/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
           git push origin "$BRANCH"
 
@@ -197,12 +193,8 @@ jobs:
 
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cp -r "$ARTIFACT_DIR"/. .
+          printf '%s\n' "${GITHUB_SHA}" > .deploy-marker
 
           git add -A
-          if git diff --cached --quiet; then
-            echo "No API changes to publish"
-            exit 0
-          fi
-
           git commit -m "Deploy API to /API/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
           git push origin "$BRANCH"
