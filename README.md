@@ -124,14 +124,14 @@ Repositório: `git@github.com:vladimirca2000/SiteHibit.git`
 
 ## Deploy (King.host)
 
-Em produção na King.host (Windows), frontend e API ficam em **pastas irmãs** na raiz FTP:
+Em produção na King.host (Windows), frontend e API ficam em **`/www/`** (Angular) e **`/www/API/`** (ASP.NET Core 8). A URL pública da API continua `https://hibit.com.br/API/` via `ASPNETCORE_PATHBASE=/API`.
 
 | Caminho FTP | Conteúdo | URL pública |
 |-------------|----------|-------------|
 | `/www/` | Angular (site estático) | `https://hibit.com.br/` |
-| `/API/` | ASP.NET Core 8 (API REST) | `https://hibit.com.br/API/` |
+| `/www/API/` | ASP.NET Core 8 (API REST) | `https://hibit.com.br/API/` |
 
-A API **não** fica dentro de `/www/`. No painel, registre ASP.NET Core no caminho `\API`.
+A API **não** fica na raiz FTP `/API/`. Variáveis sensíveis vão no **`web.config`** de `/www/API/` (gerado no deploy).
 
 O frontend chama a API em `/API` (ex.: `/API/api/auth/login`, `/API/health`).
 
@@ -174,7 +174,7 @@ O pipeline **compila** Angular e API e publica branches de release no GitHub:
 | Branch | Conteúdo | Destino King.host |
 |--------|----------|-------------------|
 | `release-www` | Angular build (estático) | `/www/` |
-| `release-api` | `dotnet publish` | `/API/` |
+| `release-api` | `dotnet publish` | `/www/API/` |
 
 A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)).
 

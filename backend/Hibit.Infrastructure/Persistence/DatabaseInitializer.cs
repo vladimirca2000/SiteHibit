@@ -24,7 +24,15 @@ public static class DatabaseInitializer
             var connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
-            await EnsureMySqlDatabaseExistsAsync(connectionString, logger, cancellationToken);
+            var isDevelopment = string.Equals(
+                configuration["ASPNETCORE_ENVIRONMENT"],
+                "Development",
+                StringComparison.OrdinalIgnoreCase);
+
+            if (isDevelopment)
+            {
+                await EnsureMySqlDatabaseExistsAsync(connectionString, logger, cancellationToken);
+            }
 
             var pending = (await context.Database.GetPendingMigrationsAsync(cancellationToken)).ToList();
             if (pending.Count > 0)
