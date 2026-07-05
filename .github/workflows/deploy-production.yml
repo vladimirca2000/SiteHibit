@@ -9,9 +9,6 @@ concurrency:
   group: deploy-production
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 jobs:
   test-backend:
     runs-on: ubuntu-latest
@@ -139,62 +136,38 @@ jobs:
           mkdir -p publish/www
           cp -r frontend/hibit-web/dist/hibit-web/browser/* publish/www/
 
-      - name: Publish release-www branch for King.host Git Webhook
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Deploy frontend to /www/ via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/www/
+          server-dir: /www/
+          dangerous-clean-slate: true
+
+      - name: Deploy API to /API/ via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/api/
+          server-dir: /API/
+          dangerous-clean-slate: true
+
+      - name: Verify production endpoints
         run: |
           set -euo pipefail
-          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          BRANCH="release-www"
-          ARTIFACT_DIR="${GITHUB_WORKSPACE}/publish/www"
-          TARGET_DIR="$(mktemp -d)"
-
-          if git clone --branch "$BRANCH" --single-branch "$REMOTE" "$TARGET_DIR"; then
-            cd "$TARGET_DIR"
-          else
-            git init "$TARGET_DIR"
-            cd "$TARGET_DIR"
-            git checkout -b "$BRANCH"
-            git remote add origin "$REMOTE"
+          echo "Site:"
+          curl -fsS -o /dev/null -w "  https://hibit.com.br/ -> HTTP %{http_code}\n" --connect-timeout 30 https://hibit.com.br/
+          echo "API health (requer ASP.NET registrado em \\API no painel):"
+          code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 30 https://hibit.com.br/API/health || true)"
+          echo "  https://hibit.com.br/API/health -> HTTP ${code}"
+          if [ "$code" = "404" ]; then
+            echo "  Aviso: 404 indica app nao registrada no painel King.host (caminho \\API)."
           fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          cp -r "$ARTIFACT_DIR"/. .
-          printf '%s\n' "${GITHUB_SHA}" > .deploy-marker
-
-          git add -A
-          git commit -m "Deploy frontend to /www/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-          git push origin "$BRANCH"
-
-      - name: Publish release-api branch for King.host Git Webhook
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          BRANCH="release-api"
-          ARTIFACT_DIR="${GITHUB_WORKSPACE}/publish/api"
-          TARGET_DIR="$(mktemp -d)"
-
-          if git clone --branch "$BRANCH" --single-branch "$REMOTE" "$TARGET_DIR"; then
-            cd "$TARGET_DIR"
-          else
-            git init "$TARGET_DIR"
-            cd "$TARGET_DIR"
-            git checkout -b "$BRANCH"
-            git remote add origin "$REMOTE"
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          cp -r "$ARTIFACT_DIR"/. .
-          printf '%s\n' "${GITHUB_SHA}" > .deploy-marker
-
-          git add -A
-          git commit -m "Deploy API to /API/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-          git push origin "$BRANCH"
