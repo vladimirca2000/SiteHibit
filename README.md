@@ -161,29 +161,35 @@ chmod +x scripts/publish-api.sh
 
 Gera `publish/api/`.
 
-### GitHub Actions + FTP (King.host)
+### GitHub Actions + King.host Git Webhook
 
 Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)
 
 Dispara em **push na branch `master`** (após merge do PR de `main`).
 
-O pipeline **compila** Angular e API e envia via **FTP** para a King.host ([acesso FTP](https://king.host/wiki/artigo/como-verificar-os-dados-de-acesso-ao-ftp/)):
+O pipeline **compila** Angular e API e publica branches de release no GitHub:
 
-| Origem local | Destino FTP |
-|--------------|-------------|
-| `publish/www/` | `/www/` |
-| `publish/api/` | `/API/` |
+| Branch | Conteúdo | Diretório King.host |
+|--------|----------|---------------------|
+| `release-www` | Angular build (estático) | `/www/` |
+| `release-api` | `dotnet publish` | `/API/` |
 
-**Secrets obrigatórios** (Settings → Secrets and variables → Actions):
+A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)).
 
-| Secret | Descrição | Exemplo |
-|--------|-----------|---------|
-| `FTP_SERVER` | Host FTP | `ftp.hibit.com.br` |
-| `FTP_USERNAME` | Usuário FTP | `hibit` |
-| `FTP_PASSWORD` | Senha FTP | *(painel King.host)* |
-| `APP_USER_PASSWORD` | Senha do usuário de app (build Angular) | *(definida por você)* |
+**Secret obrigatório** (Settings → Secrets and variables → Actions):
 
-Porta padrão: **21** (FTP). Pode desabilitar o **Git Webhook** no painel se passar a usar só este pipeline.
+| Secret | Descrição |
+|--------|-----------|
+| `APP_USER_PASSWORD` | Senha do usuário de app (build Angular) |
+
+### Configurar Git Webhook na King.host (2 integrações)
+
+1. Painel → **Git Webhook** → **Habilitar** → **Conectar ao GitHub**
+2. Autorize o repositório `vladimirca2000/SiteHibit`
+3. **Integração 1 (frontend):** branch `release-www`, diretório `/www/` (deve estar vazio na 1ª vez)
+4. **Integração 2 (API):** branch `release-api`, diretório `/API/` (deve estar vazio na 1ª vez)
+
+A branch `master` continua com o código-fonte; o deploy compilado vai para `release-www` e `release-api`.
 
 ### Variáveis no painel King.host (API em `/API/`)
 
@@ -213,10 +219,12 @@ Encryption__Iv=***
 
 ### Checklist King.host
 
-1. Configurar **Secrets FTP** no GitHub (`FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`)
-2. Configurar aplicação ASP.NET Core 8 em `/API/`
-3. MySQL: `mysql.hibit.com.br` / database `hibit` / user `hibit`
-4. RabbitMQ: `rabbit.hibit.com.br` / user `admin` / fila `hibit.contact`
-5. HTTPS ativo no domínio
+1. Configurar **Git Webhook** (GitHub) — ver [wiki King.host](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)
+2. Webhook frontend: branch `release-www` → `/www/`
+3. Webhook API: branch `release-api` → `/API/`
+4. Configurar aplicação ASP.NET Core 8 em `/API/`
+5. MySQL: `mysql.hibit.com.br` / database `hibit` / user `hibit`
+6. RabbitMQ: `rabbit.hibit.com.br` / user `admin` / fila `hibit.contact`
+7. HTTPS ativo no domínio
 
 Consulte `.env.example` para a lista completa de variáveis.
