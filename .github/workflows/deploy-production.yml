@@ -131,6 +131,16 @@ jobs:
       - name: Publish API
         run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
 
+      - name: Generate production web.config for IIS
+        env:
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
+        run: bash scripts/generate-api-webconfig.sh publish/api
+
       - name: Prepare frontend artifacts
         run: |
           mkdir -p publish/www
@@ -148,7 +158,7 @@ jobs:
           server-dir: /www/
           dangerous-clean-slate: true
 
-      - name: Deploy API to /API/ via FTP
+      - name: Deploy API to /www/API/ via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -157,7 +167,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: publish/api/
-          server-dir: /API/
+          server-dir: /www/API/
           dangerous-clean-slate: true
 
       - name: Verify production endpoints
@@ -165,9 +175,11 @@ jobs:
           set -euo pipefail
           echo "Site:"
           curl -fsS -o /dev/null -w "  https://hibit.com.br/ -> HTTP %{http_code}\n" --connect-timeout 30 https://hibit.com.br/
-          echo "API health (requer ASP.NET registrado em \\API no painel):"
+          echo "API health:"
           code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 30 https://hibit.com.br/API/health || true)"
-          echo "  https://hibit.com.br/API/health -> HTTP ${code}"
-          if [ "$code" = "404" ]; then
-            echo "  Aviso: 404 indica app nao registrada no painel King.host (caminho \\API)."
+          body="$(curl -sS --connect-timeout 30 https://hibit.com.br/API/health || true)"
+          echo "  https://hibit.com.br/API/health -> HTTP ${code} (${body})"
+          if [ "$code" != "200" ]; then
+            echo "  Aviso: health check nao retornou 200. Verifique web.config e logs em /www/API/logs/."
+            exit 1
           fi

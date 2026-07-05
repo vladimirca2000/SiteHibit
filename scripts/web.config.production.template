@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <handlers>
+        <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+      </handlers>
+      <aspNetCore processPath="dotnet"
+                  arguments=".\Hibit.Api.dll"
+                  stdoutLogEnabled="true"
+                  stdoutLogFile=".\stdout"
+                  hostingModel="OutOfProcess">
+        <environmentVariables>
+          <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
+          <environmentVariable name="ASPNETCORE_PATHBASE" value="/API" />
+          <environmentVariable name="CORS_ORIGINS" value="https://hibit.com.br,https://www.hibit.com.br" />
+          <environmentVariable name="ConnectionStrings__DefaultConnection" value="{{CONNECTION_STRING}}" />
+          <environmentVariable name="RabbitMQ__Host" value="rabbit.hibit.com.br" />
+          <environmentVariable name="RabbitMQ__Port" value="5672" />
+          <environmentVariable name="RabbitMQ__User" value="admin" />
+          <environmentVariable name="RabbitMQ__Password" value="{{RABBITMQ_PASSWORD}}" />
+          <environmentVariable name="RabbitMQ__Queue" value="hibit.contact" />
+          <environmentVariable name="RabbitMQ__VirtualHost" value="/" />
+          <environmentVariable name="Jwt__Secret" value="{{JWT_SECRET}}" />
+          <environmentVariable name="Jwt__Issuer" value="Hibit.Api" />
+          <environmentVariable name="Jwt__Audience" value="Hibit.Web" />
+          <environmentVariable name="Jwt__ExpirationMinutes" value="60" />
+          <environmentVariable name="AppUser__Username" value="hibit-app" />
+          <environmentVariable name="AppUser__Password" value="{{APP_USER_PASSWORD}}" />
+          <environmentVariable name="Encryption__Key" value="{{ENCRYPTION_KEY}}" />
+          <environmentVariable name="Encryption__Iv" value="{{ENCRYPTION_IV}}" />
+        </environmentVariables>
+      </aspNetCore>
+    </system.webServer>
+  </location>
+</configuration>
