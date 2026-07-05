@@ -9,9 +9,6 @@ concurrency:
   group: deploy-production
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 jobs:
   test-backend:
     runs-on: ubuntu-latest
@@ -139,32 +136,26 @@ jobs:
           mkdir -p publish/www
           cp -r frontend/hibit-web/dist/hibit-web/browser/* publish/www/
 
-      - name: Publish release-www branch for King.host Git Webhook
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          cd publish/www
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Deploy frontend to /www/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-          git branch -M release-www
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          git push -f origin release-www
+      - name: Deploy frontend to /www/ via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/www/
+          server-dir: /www/
+          dangerous-clean-slate: true
 
-      - name: Publish release-api branch for King.host Git Webhook
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          cd publish/api
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Deploy API to /API/ ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-          git branch -M release-api
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          git push -f origin release-api
+      - name: Deploy API to /API/ via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/api/
+          server-dir: /API/
+          dangerous-clean-slate: true
