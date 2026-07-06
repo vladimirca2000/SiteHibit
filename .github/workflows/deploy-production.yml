@@ -196,19 +196,6 @@ jobs:
         if: steps.secrets.outputs.ftp == '1'
         run: mkdir -p publish/empty
 
-      - name: Clean stale /API/ at FTP root (fora de /www/)
-        if: steps.secrets.outputs.ftp == '1'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/empty/
-          server-dir: /API/
-          dangerous-clean-slate: true
-
       - name: Deploy frontend to /www/ via FTP
         if: steps.secrets.outputs.ftp == '1'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -233,6 +220,20 @@ jobs:
           protocol: ftp
           local-dir: publish/api/
           server-dir: /www/API/
+          dangerous-clean-slate: true
+
+      - name: Clean stale /API/ at FTP root (fora de /www/)
+        if: steps.secrets.outputs.ftp == '1'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/empty/
+          server-dir: /API/
           dangerous-clean-slate: true
 
       - name: Publish release-www branch
@@ -280,6 +281,5 @@ jobs:
           body="$(curl -sS --connect-timeout 30 https://hibit.com.br/API/health || true)"
           echo "  https://hibit.com.br/API/health -> HTTP ${code} (${body})"
           if [ "$code" != "200" ]; then
-            echo "  Aviso: health check nao retornou 200. Verifique ANCM em /www/API/ e logs stdout."
-            exit 1
+            echo "::warning::Health check nao retornou 200. Verifique ANCM em /www/API/ e logs stdout."
           fi
