@@ -192,51 +192,6 @@ jobs:
           echo "www  -> /www/     : index.html + web.config (SPA)"
           echo "api  -> /www/API/ : Hibit.Api.dll + web.config (IIS)"
 
-      - name: Prepare empty folder for FTP cleanup
-        if: steps.secrets.outputs.ftp == '1'
-        run: mkdir -p publish/empty
-
-      - name: Deploy frontend to /www/ via FTP
-        if: steps.secrets.outputs.ftp == '1'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          log-level: verbose
-          local-dir: publish/www/
-          server-dir: www/
-          dangerous-clean-slate: true
-
-      - name: Deploy API to /www/API/ via FTP
-        if: steps.secrets.outputs.ftp == '1'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/api/
-          server-dir: www/API/
-          dangerous-clean-slate: true
-
-      - name: Clean stale /API/ at FTP root (fora de /www/)
-        if: steps.secrets.outputs.ftp == '1'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/empty/
-          server-dir: API/
-          dangerous-clean-slate: true
-
       - name: Publish release-www branch
         working-directory: publish/www
         env:
@@ -266,6 +221,97 @@ jobs:
           git branch -M release-api
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push -f origin release-api
+
+      - name: Prepare empty folder for FTP cleanup
+        if: steps.secrets.outputs.ftp == '1'
+        run: mkdir -p publish/empty
+
+      - name: Deploy frontend to www/ via FTP
+        id: ftp-www
+        if: steps.secrets.outputs.ftp == '1'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/www/
+          server-dir: www/
+          dangerous-clean-slate: true
+
+      - name: Deploy frontend via FTPS (fallback)
+        id: ftp-www-ftps
+        if: steps.secrets.outputs.ftp == '1' && steps.ftp-www.outcome == 'failure'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 990
+          protocol: ftps
+          security: loose
+          local-dir: publish/www/
+          server-dir: www/
+          dangerous-clean-slate: true
+
+      - name: Deploy API to www/API/ via FTP
+        id: ftp-api
+        if: steps.secrets.outputs.ftp == '1'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/api/
+          server-dir: www/API/
+          dangerous-clean-slate: true
+
+      - name: Deploy API via FTPS (fallback)
+        id: ftp-api-ftps
+        if: steps.secrets.outputs.ftp == '1' && steps.ftp-api.outcome == 'failure'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 990
+          protocol: ftps
+          security: loose
+          local-dir: publish/api/
+          server-dir: www/API/
+          dangerous-clean-slate: true
+
+      - name: Clean stale API/ at FTP root (fora de www/)
+        if: steps.secrets.outputs.ftp == '1'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/empty/
+          server-dir: API/
+          dangerous-clean-slate: true
+
+      - name: FTP deploy summary
+        if: always() && steps.secrets.outputs.ftp == '1'
+        run: |
+          echo "FTP www  (21):  ${{ steps.ftp-www.outcome }}"
+          echo "FTP www  (990): ${{ steps.ftp-www-ftps.outcome || 'skipped' }}"
+          echo "FTP API  (21):  ${{ steps.ftp-api.outcome }}"
+          echo "FTP API  (990): ${{ steps.ftp-api-ftps.outcome || 'skipped' }}"
+          if [ "${{ steps.ftp-www.outcome }}" != "success" ] && [ "${{ steps.ftp-www-ftps.outcome }}" != "success" ]; then
+            echo "::warning::FTP frontend falhou. Confira FTP_SERVER (sem https://), usuario/senha FTP da King.host e teste no FileZilla."
+          fi
 
       - name: Verify production endpoints
         run: |
