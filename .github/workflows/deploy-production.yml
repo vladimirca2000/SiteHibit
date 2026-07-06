@@ -98,9 +98,10 @@ jobs:
       - name: Build production
         run: npm run build -- --configuration=production
 
-  deploy-www:
+  deploy:
     needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - uses: actions/checkout@v4
@@ -111,6 +112,11 @@ jobs:
           node-version: '20'
           cache: npm
           cache-dependency-path: frontend/hibit-web/package-lock.json
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
       - name: Inject production app user password
         working-directory: frontend/hibit-web
@@ -125,46 +131,6 @@ jobs:
           npm ci
           npm run build -- --configuration=production
 
-      - name: Prepare frontend artifacts
-        run: |
-          mkdir -p publish/www
-          cp -r frontend/hibit-web/dist/hibit-web/browser/* publish/www/
-
-      - name: Verify www artifacts
-        run: |
-          set -euo pipefail
-          test -f publish/www/index.html
-          test -f publish/www/web.config
-          echo "release-www -> /www/: index.html e web.config (SPA Angular) OK"
-
-      - name: Publish release-www branch
-        working-directory: publish/www
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Deploy www ${GITHUB_SHA::7}"
-          git branch -M release-www
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push -f origin release-www
-
-  deploy-api:
-    needs: [test-backend, test-frontend]
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
       - name: Publish API
         run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
 
@@ -176,10 +142,13 @@ jobs:
           APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -euo pipefail
           missing=0
-          for name in MYSQL_PASSWORD RABBITMQ_PASSWORD JWT_SECRET APP_USER_PASSWORD ENCRYPTION_KEY ENCRYPTION_IV; do
+          for name in MYSQL_PASSWORD RABBITMQ_PASSWORD JWT_SECRET APP_USER_PASSWORD ENCRYPTION_KEY ENCRYPTION_IV FTP_SERVER FTP_USERNAME FTP_PASSWORD; do
             if [ -z "${!name:-}" ]; then
               echo "::error::Secret ausente no environment production: ${name}"
               missing=1
@@ -200,13 +169,72 @@ jobs:
           ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
         run: bash scripts/generate-api-webconfig.sh publish/api
 
-      - name: Verify api artifacts
+      - name: Prepare frontend artifacts
+        run: |
+          mkdir -p publish/www
+          cp -r frontend/hibit-web/dist/hibit-web/browser/* publish/www/
+
+      - name: Verify artifacts
         run: |
           set -euo pipefail
+          test -f publish/www/index.html
+          test -f publish/www/web.config
           test -f publish/api/Hibit.Api.dll
           test -f publish/api/web.config
           test -d publish/api/logs
-          echo "release-api -> /API/: Hibit.Api.dll, web.config (IIS) e logs/ OK"
+          echo "www  -> /www/     : index.html + web.config (SPA)"
+          echo "api  -> /www/API/ : Hibit.Api.dll + web.config (IIS)"
+
+      - name: Clean stale /API/ at FTP root (fora de /www/)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/empty/
+          server-dir: /API/
+          dangerous-clean-slate: true
+
+      - name: Deploy frontend to /www/ via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/www/
+          server-dir: /www/
+          dangerous-clean-slate: true
+
+      - name: Deploy API to /www/API/ via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/api/
+          server-dir: /www/API/
+          dangerous-clean-slate: true
+
+      - name: Publish release-www branch
+        working-directory: publish/www
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy www ${GITHUB_SHA::7} -> /www/"
+          git branch -M release-www
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push -f origin release-www
 
       - name: Publish release-api branch
         working-directory: publish/api
@@ -218,19 +246,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Deploy api ${GITHUB_SHA::7}"
+          git commit -m "Deploy api ${GITHUB_SHA::7} -> /www/API/"
           git branch -M release-api
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push -f origin release-api
 
-  verify:
-    needs: [deploy-www, deploy-api]
-    runs-on: ubuntu-latest
-
-    steps:
       - name: Verify production endpoints
         run: |
           set -euo pipefail
+          echo "Layout FTP esperado:"
+          echo "  /www/          <- Angular (release-www)"
+          echo "  /www/API/      <- API .NET (release-api / FTP)"
+          echo "  /API/          <- vazio (legado removido)"
+          echo ""
           echo "Site:"
           curl -fsS -o /dev/null -w "  https://hibit.com.br/ -> HTTP %{http_code}\n" --connect-timeout 30 https://hibit.com.br/
           echo "API health:"
@@ -238,6 +266,6 @@ jobs:
           body="$(curl -sS --connect-timeout 30 https://hibit.com.br/API/health || true)"
           echo "  https://hibit.com.br/API/health -> HTTP ${code} (${body})"
           if [ "$code" != "200" ]; then
-            echo "  Aviso: health check nao retornou 200. King.host sincroniza release-api -> /API/; verifique ANCM e logs."
+            echo "  Aviso: health check nao retornou 200. Verifique ANCM em /www/API/ e logs stdout."
             exit 1
           fi
