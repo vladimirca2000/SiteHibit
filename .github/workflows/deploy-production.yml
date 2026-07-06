@@ -135,6 +135,7 @@ jobs:
         run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
 
       - name: Validate production secrets
+        id: secrets
         env:
           MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
           RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
@@ -148,15 +149,21 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for name in MYSQL_PASSWORD RABBITMQ_PASSWORD JWT_SECRET APP_USER_PASSWORD ENCRYPTION_KEY ENCRYPTION_IV FTP_SERVER FTP_USERNAME FTP_PASSWORD; do
+          for name in MYSQL_PASSWORD RABBITMQ_PASSWORD JWT_SECRET APP_USER_PASSWORD ENCRYPTION_KEY ENCRYPTION_IV; do
             if [ -z "${!name:-}" ]; then
               echo "::error::Secret ausente no environment production: ${name}"
               missing=1
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "Configure os secrets em Settings -> Environments -> production -> Environment secrets"
             exit 1
+          fi
+          if [ -n "${FTP_SERVER:-}" ] && [ -n "${FTP_USERNAME:-}" ] && [ -n "${FTP_PASSWORD:-}" ]; then
+            echo "ftp=1" >> "$GITHUB_OUTPUT"
+            echo "FTP configurado: limpeza e deploy direto em /www/ e /www/API/"
+          else
+            echo "ftp=0" >> "$GITHUB_OUTPUT"
+            echo "::warning::FTP_* ausente — pulando limpeza FTP. Configure FTP_SERVER, FTP_USERNAME e FTP_PASSWORD para limpar e publicar via FTP."
           fi
 
       - name: Generate production web.config for IIS
@@ -185,7 +192,12 @@ jobs:
           echo "www  -> /www/     : index.html + web.config (SPA)"
           echo "api  -> /www/API/ : Hibit.Api.dll + web.config (IIS)"
 
+      - name: Prepare empty folder for FTP cleanup
+        if: steps.secrets.outputs.ftp == '1'
+        run: mkdir -p publish/empty
+
       - name: Clean stale /API/ at FTP root (fora de /www/)
+        if: steps.secrets.outputs.ftp == '1'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -198,6 +210,7 @@ jobs:
           dangerous-clean-slate: true
 
       - name: Deploy frontend to /www/ via FTP
+        if: steps.secrets.outputs.ftp == '1'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -210,6 +223,7 @@ jobs:
           dangerous-clean-slate: true
 
       - name: Deploy API to /www/API/ via FTP
+        if: steps.secrets.outputs.ftp == '1'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
