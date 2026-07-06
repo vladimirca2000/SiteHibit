@@ -205,8 +205,9 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
           protocol: ftp
+          log-level: verbose
           local-dir: publish/www/
-          server-dir: /www/
+          server-dir: www/
           dangerous-clean-slate: true
 
       - name: Deploy API to /www/API/ via FTP
@@ -219,7 +220,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: publish/api/
-          server-dir: /www/API/
+          server-dir: www/API/
           dangerous-clean-slate: true
 
       - name: Clean stale /API/ at FTP root (fora de /www/)
@@ -233,7 +234,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: publish/empty/
-          server-dir: /API/
+          server-dir: API/
           dangerous-clean-slate: true
 
       - name: Publish release-www branch
