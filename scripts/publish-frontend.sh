@@ -2,23 +2,34 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FRONTEND="$ROOT/frontend/hibit-web"
-DIST="$FRONTEND/dist/hibit-web/browser"
+FRONTEND="$ROOT/frontend/hibit-blazor"
+PROJECT="$FRONTEND/Hibit.Web.csproj"
+TEMP="$ROOT/publish/www-build"
 OUTPUT="$ROOT/publish/www"
 
-echo "Building Angular frontend..."
-cd "$FRONTEND"
-npm ci
-npm run build -- --configuration=production
+echo "Building Blazor WebAssembly frontend..."
+rm -rf "$TEMP"
+dotnet publish "$PROJECT" -c Release -o "$TEMP"
 
-if [ ! -d "$DIST" ]; then
-  echo "Build output not found at $DIST" >&2
+STATIC="$TEMP/wwwroot"
+if [ ! -f "$STATIC/index.html" ]; then
+  echo "Build output not found at $STATIC (missing index.html)" >&2
   exit 1
 fi
 
-echo "Copying frontend build to $OUTPUT ..."
+echo "Copying static site to $OUTPUT ..."
 rm -rf "$OUTPUT"
 mkdir -p "$OUTPUT"
-cp -r "$DIST"/* "$OUTPUT/"
+cp -r "$STATIC"/* "$OUTPUT/"
+
+if [ ! -f "$OUTPUT/web.config" ]; then
+  echo "Build output missing web.config at $OUTPUT" >&2
+  exit 1
+fi
+
+if [ ! -d "$OUTPUT/_framework" ]; then
+  echo "Build output missing _framework at $OUTPUT" >&2
+  exit 1
+fi
 
 echo "Frontend publish complete: $OUTPUT"

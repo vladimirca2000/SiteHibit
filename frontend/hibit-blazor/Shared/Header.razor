@@ -1,0 +1,85 @@
+@inject IThemeService ThemeService
+@using Hibit.Web.Content
+@implements IDisposable
+
+<header class="header @(_isMobileMenuOpen ? "header-menu-open" : null)" role="banner">
+    <div class="container header-inner">
+        <a href="/" class="logo" aria-label="HIBIT - Home" @onclick="CloseMobileMenu">
+            <img class="logo-mark" src="images/logo-mark.png" width="40" height="40" alt="" />
+            <span class="logo-text">HIBIT</span>
+        </a>
+
+        <button type="button"
+                class="mobile-menu-toggle"
+                @onclick="ToggleMobileMenu"
+                aria-expanded="@_isMobileMenuOpen"
+                aria-controls="main-nav"
+                aria-label="@(_isMobileMenuOpen ? "Fechar menu" : "Abrir menu")">
+            @if (_isMobileMenuOpen)
+            {
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            }
+            else
+            {
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+            }
+        </button>
+    </div>
+
+    <nav id="main-nav"
+         class="nav @(_isMobileMenuOpen ? "nav-open" : null)"
+         aria-label="Navegação principal">
+        <div class="container nav-inner">
+            @foreach (var item in SiteContent.Navigation.Items)
+            {
+                <NavLink href="@item.Href"
+                         Match="@(item.Exact ? NavLinkMatch.All : NavLinkMatch.Prefix)"
+                         class="nav-link"
+                         @onclick="CloseMobileMenu">
+                    @item.Label
+                </NavLink>
+            }
+
+            <button type="button"
+                    class="theme-toggle btn btn-outline"
+                    @onclick="ToggleTheme"
+                    aria-label="@(ThemeService.IsDarkMode ? "Ativar tema claro" : "Ativar tema escuro")"
+                    aria-pressed="@ThemeService.IsDarkMode">
+                @(ThemeService.IsDarkMode ? "Light" : "Dark")
+            </button>
+
+            <a href="/contato" class="btn btn-primary header-cta" @onclick="CloseMobileMenu">
+                Fale conosco
+            </a>
+        </div>
+    </nav>
+</header>
+
+@code {
+    private bool _isMobileMenuOpen;
+
+    protected override void OnInitialized()
+    {
+        ThemeService.OnThemeChanged += OnThemeChanged;
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= OnThemeChanged;
+    }
+
+    private void OnThemeChanged() => InvokeAsync(StateHasChanged);
+
+    private void ToggleTheme() => _ = ThemeService.ToggleThemeAsync();
+
+    private void ToggleMobileMenu() => _isMobileMenuOpen = !_isMobileMenuOpen;
+
+    private void CloseMobileMenu() => _isMobileMenuOpen = false;
+}

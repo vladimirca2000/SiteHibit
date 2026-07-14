@@ -4,22 +4,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$frontendDir = Join-Path $repoRoot 'frontend/hibit-web'
 $wwwrootDir = Join-Path $repoRoot 'backend/Hibit.Api/wwwroot'
-$distDir = Join-Path $frontendDir 'dist/hibit-web/browser'
+$publishWww = Join-Path $repoRoot 'publish/www'
 
-Write-Host 'Building Angular frontend...'
-Push-Location $frontendDir
-try {
-    npm ci
-    npm run build -- --configuration=production
-} finally {
-    Pop-Location
-}
-
-if (-not (Test-Path $distDir)) {
-    throw "Build output not found at $distDir"
-}
+& (Join-Path $PSScriptRoot 'publish-frontend.ps1')
 
 Write-Host "Copying frontend build to $wwwrootDir ..."
 if (Test-Path $wwwrootDir) {
@@ -28,7 +16,7 @@ if (Test-Path $wwwrootDir) {
     New-Item -ItemType Directory -Path $wwwrootDir | Out-Null
 }
 
-Copy-Item -Path (Join-Path $distDir '*') -Destination $wwwrootDir -Recurse -Force
+Copy-Item -Path (Join-Path $publishWww '*') -Destination $wwwrootDir -Recurse -Force
 
 Write-Host 'Publishing .NET API...'
 Push-Location (Join-Path $repoRoot 'backend')

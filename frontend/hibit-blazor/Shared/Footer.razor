@@ -1,0 +1,48 @@
+@using Hibit.Web.Content
+
+<footer class="footer" role="contentinfo">
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <a href="/" class="footer-logo" aria-label="HIBIT - Home">
+                    <img class="logo-mark" src="images/logo-mark.png" width="36" height="36" alt="" />
+                    <span class="logo-text">HIBIT</span>
+                </a>
+                <p class="footer-tagline">@SiteContent.Company.Tagline</p>
+                <p class="footer-description">@SiteContent.Company.Description</p>
+            </div>
+
+            <div class="footer-col">
+                <h3 class="footer-heading">Navegação</h3>
+                <nav class="footer-nav" aria-label="Links do rodapé">
+                    @foreach (var link in SiteContent.Footer.QuickLinks)
+                    {
+                        <NavLink href="@link.Href" class="footer-link" Match="@(link.Href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+                            @link.Text
+                        </NavLink>
+                    }
+                </nav>
+            </div>
+
+            <div class="footer-col">
+                <h3 class="footer-heading">Contato</h3>
+                <address class="footer-contact">
+                    <p>@SiteContent.Company.Address</p>
+                    <p>
+                        <a href="mailto:@SiteContent.Company.Email">@SiteContent.Company.Email</a>
+                    </p>
+                    <p>@SiteContent.Company.Phone</p>
+                </address>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p class="copyright">
+                &copy; @DateTime.UtcNow.Year @SiteContent.Company.Name. Todos os direitos reservados.
+            </p>
+            <p class="footer-legal">
+                Desenvolvido com foco em qualidade, segurança e performance.
+            </p>
+        </div>
+    </div>
+</footer>

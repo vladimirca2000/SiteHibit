@@ -1,0 +1,105 @@
+@page "/sobre"
+@using Hibit.Web.Content
+
+<PageTitle>Hibit | Sobre</PageTitle>
+
+<section class="page-hero" aria-labelledby="page-title">
+    <div class="container page-hero-content">
+        <span class="section-tag">Quem somos</span>
+        <h1 id="page-title" class="page-title">@SiteContent.About.PageTitle</h1>
+        <p class="page-subtitle">@SiteContent.About.PageSubtitle</p>
+    </div>
+</section>
+
+<section class="about-story" aria-labelledby="history-title">
+    <div class="container about-story-grid">
+        <div class="about-story-text">
+            <h2 id="history-title" class="section-title">Nossa história</h2>
+            <p>@SiteContent.About.History</p>
+            <div class="about-timeline" aria-label="Linha do tempo da Hibit">
+                @foreach (var item in SiteContent.About.Timeline)
+                {
+                    <article class="timeline-item">
+                        <span>@item.Title</span>
+                        <p>@item.Description</p>
+                    </article>
+                }
+            </div>
+        </div>
+        <figure class="about-story-visual">
+            <img class="about-story-image"
+                 src="@SiteContent.StoryImageUrl"
+                 alt="Equipe de tecnologia colaborando em desenvolvimento de software"
+                 loading="lazy"
+                 decoding="async" />
+            <figcaption class="about-visual-card">
+                <span class="about-visual-icon" aria-hidden="true">&lt;/&gt;</span>
+                <p>Engenharia de software com propósito</p>
+            </figcaption>
+        </figure>
+    </div>
+</section>
+
+<section class="mission-section section-alt" aria-label="Missão e visão">
+    <div class="container">
+        <div class="mission-grid">
+            <article class="mission-card">
+                <span class="card-label">Missão</span>
+                <p>@SiteContent.About.Mission</p>
+            </article>
+            <article class="mission-card">
+                <span class="card-label">Visão</span>
+                <p>@SiteContent.About.Vision</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="values" aria-labelledby="values-title">
+    <div class="container">
+        <header class="section-header">
+            <span class="section-tag">Nossos valores</span>
+            <h2 id="values-title" class="section-title">O que nos guia</h2>
+        </header>
+        <div class="values-grid">
+            @foreach (var value in SiteContent.About.Values)
+            {
+                <article class="value-card">
+                    <h3 class="value-title">@value.Title</h3>
+                    <p class="value-description">@value.Description</p>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="differentiators section-dark" aria-labelledby="diff-title">
+    <div class="container">
+        <div class="diff-grid">
+            <div>
+                <span class="section-tag">Diferenciais</span>
+                <h2 id="diff-title" class="section-title">Por que escolher a @SiteContent.Company.Name</h2>
+                <p class="section-description">@SiteContent.About.Culture</p>
+            </div>
+            <ul class="diff-list">
+                @foreach (var item in SiteContent.About.Differentiators)
+                {
+                    <li>
+                        <span class="diff-check" aria-hidden="true">&#10003;</span>
+                        @item
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="cta-band" aria-labelledby="cta-title">
+    <div class="container cta-band-inner">
+        <div class="cta-band-text">
+            <h2 id="cta-title" class="cta-title">@SiteContent.About.CtaTitle</h2>
+            <p class="cta-subtitle">@SiteContent.About.CtaSubtitle</p>
+        </div>
+        <a href="/contato" class="btn btn-dark cta-band-btn">@SiteContent.About.CtaButton</a>
+    </div>
+</section>

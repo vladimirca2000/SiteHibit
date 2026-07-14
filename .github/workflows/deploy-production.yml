@@ -56,7 +56,7 @@ jobs:
       Jwt__ExpirationMinutes: 60
       AppUser__Username: hibit-app
       AppUser__Password: hibit-app-ci
-      CORS_ORIGINS: http://localhost:4200
+      CORS_ORIGINS: http://localhost:5050
 
     steps:
       - uses: actions/checkout@v4
@@ -78,25 +78,23 @@ jobs:
   test-frontend:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: frontend/hibit-web
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: frontend/hibit-web/package-lock.json
+          dotnet-version: '8.0.x'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Publish Blazor WebAssembly
+        run: dotnet publish frontend/hibit-blazor/Hibit.Web.csproj -c Release -o publish/www-ci
 
-      - name: Build production
-        run: npm run build -- --configuration=production
+      - name: Verify frontend build
+        run: |
+          set -euo pipefail
+          test -f publish/www-ci/wwwroot/index.html
+          test -f publish/www-ci/wwwroot/web.config
+          test -d publish/www-ci/wwwroot/_framework
 
   deploy:
     needs: [test-backend, test-frontend]
@@ -106,30 +104,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: frontend/hibit-web/package-lock.json
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
       - name: Inject production app user password
-        working-directory: frontend/hibit-web
+        working-directory: frontend/hibit-blazor
         env:
           APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
         run: |
-          node -e "const fs=require('fs');const p='src/environments/environment.prod.ts';fs.writeFileSync(p,fs.readFileSync(p,'utf8').replace('REPLACE_IN_BUILD',process.env.APP_USER_PASSWORD||''));"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          password = os.environ.get("APP_USER_PASSWORD") or ""
+          for rel in ("wwwroot/appsettings.Production.json", "appsettings.Production.json"):
+              path = Path(rel)
+              text = path.read_text(encoding="utf-8")
+              path.write_text(text.replace("REPLACE_IN_BUILD", password), encoding="utf-8")
+          PY
 
       - name: Build frontend
-        working-directory: frontend/hibit-web
-        run: |
-          npm ci
-          npm run build -- --configuration=production
+        run: bash scripts/publish-frontend.sh
 
       - name: Publish API
         run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
@@ -176,66 +172,17 @@ jobs:
           ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
         run: bash scripts/generate-api-webconfig.sh publish/api
 
-      - name: Prepare frontend artifacts
-        run: |
-          mkdir -p publish/www
-          cp -r frontend/hibit-web/dist/hibit-web/browser/* publish/www/
-
       - name: Verify artifacts
         run: |
           set -euo pipefail
           test -f publish/www/index.html
           test -f publish/www/web.config
+          test -d publish/www/_framework
           test -f publish/api/Hibit.Api.dll
           test -f publish/api/web.config
           test -d publish/api/logs
-          echo "www  -> /www/     : index.html + web.config (SPA)"
+          echo "www  -> /www/     : index.html + web.config (Blazor WASM SPA)"
           echo "api  -> /www/API/ : Hibit.Api.dll + web.config (IIS)"
-
-      - name: Prepare empty folder for FTP cleanup
-        if: steps.secrets.outputs.ftp == '1'
-        run: mkdir -p publish/empty
-
-      - name: Deploy frontend to /www/ via FTP
-        if: steps.secrets.outputs.ftp == '1'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          log-level: verbose
-          local-dir: publish/www/
-          server-dir: www/
-          dangerous-clean-slate: true
-
-      - name: Deploy API to /www/API/ via FTP
-        if: steps.secrets.outputs.ftp == '1'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/api/
-          server-dir: www/API/
-          dangerous-clean-slate: true
-
-      - name: Clean stale /API/ at FTP root (fora de /www/)
-        if: steps.secrets.outputs.ftp == '1'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/empty/
-          server-dir: API/
-          dangerous-clean-slate: true
 
       - name: Publish release-www branch
         working-directory: publish/www
@@ -267,11 +214,102 @@ jobs:
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push -f origin release-api
 
+      - name: Prepare empty folder for FTP cleanup
+        if: steps.secrets.outputs.ftp == '1'
+        run: mkdir -p publish/empty
+
+      - name: Deploy frontend to www/ via FTP
+        id: ftp-www
+        if: steps.secrets.outputs.ftp == '1'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/www/
+          server-dir: www/
+          dangerous-clean-slate: true
+
+      - name: Deploy frontend via FTPS (fallback)
+        id: ftp-www-ftps
+        if: steps.secrets.outputs.ftp == '1' && steps.ftp-www.outcome == 'failure'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 990
+          protocol: ftps
+          security: loose
+          local-dir: publish/www/
+          server-dir: www/
+          dangerous-clean-slate: true
+
+      - name: Deploy API to www/API/ via FTP
+        id: ftp-api
+        if: steps.secrets.outputs.ftp == '1'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/api/
+          server-dir: www/API/
+          dangerous-clean-slate: true
+
+      - name: Deploy API via FTPS (fallback)
+        id: ftp-api-ftps
+        if: steps.secrets.outputs.ftp == '1' && steps.ftp-api.outcome == 'failure'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 990
+          protocol: ftps
+          security: loose
+          local-dir: publish/api/
+          server-dir: www/API/
+          dangerous-clean-slate: true
+
+      - name: Clean stale API/ at FTP root (fora de www/)
+        if: steps.secrets.outputs.ftp == '1'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/empty/
+          server-dir: API/
+          dangerous-clean-slate: true
+
+      - name: FTP deploy summary
+        if: always() && steps.secrets.outputs.ftp == '1'
+        run: |
+          echo "FTP www  (21):  ${{ steps.ftp-www.outcome }}"
+          echo "FTP www  (990): ${{ steps.ftp-www-ftps.outcome || 'skipped' }}"
+          echo "FTP API  (21):  ${{ steps.ftp-api.outcome }}"
+          echo "FTP API  (990): ${{ steps.ftp-api-ftps.outcome || 'skipped' }}"
+          if [ "${{ steps.ftp-www.outcome }}" != "success" ] && [ "${{ steps.ftp-www-ftps.outcome }}" != "success" ]; then
+            echo "::warning::FTP frontend falhou. Confira FTP_SERVER (sem https://), usuario/senha FTP da King.host e teste no FileZilla."
+          fi
+
       - name: Verify production endpoints
         run: |
           set -euo pipefail
           echo "Layout FTP esperado:"
-          echo "  /www/          <- Angular (release-www)"
+          echo "  /www/          <- Blazor WASM (release-www)"
           echo "  /www/API/      <- API .NET (release-api / FTP)"
           echo "  /API/          <- vazio (legado removido)"
           echo ""
