@@ -160,45 +160,42 @@ chmod +x scripts/publish-api.sh
 
 Gera `publish/api/`.
 
-### GitHub Actions + King.host Git Webhook
+### GitHub Actions + deploy FTP (King.host)
 
 Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)
 
 Dispara em **push na branch `master`** (após merge do PR de `Development`).
 
-O pipeline **compila** Blazor WASM e API e publica branches de release no GitHub:
+O pipeline **compila** Blazor WASM e API e publica:
 
-| Branch | Conteúdo | Destino King.host |
-|--------|----------|-------------------|
-| `release-www` | Blazor WASM publish | `/www/` |
-| `release-api` | `dotnet publish` + `web.config` IIS | **`/API/`** (pasta API; não a raiz) |
+| Artefato local | Destino FTP | URL pública |
+|----------------|-------------|-------------|
+| `publish/www/` | **`/www/`** | `https://hibit.com.br/` |
+| `publish/api/` | **`/API/`** | `https://hibit.com.br/API/` |
 
-A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)).
+Também atualiza as branches `release-www` e `release-api` (backup/artefato). O deploy efetivo em produção é via **FTP**.
 
-**Secrets** (Settings → Environments → **production** → Environment secrets):
+**Secrets** (Settings → Environments → **production**):
 
 | Secret | Descrição |
 |--------|-----------|
-| `APP_USER_PASSWORD` | Senha do usuário `hibit-app` (login no site). Mesmo valor usado no seed do banco e no build Blazor (`appsettings.Production.json`). Padrão: `hibit-app-2026` |
-| `MYSQL_PASSWORD` | Senha MySQL (`hibit` em `mysql.hibit.com.br`) |
-| `RABBITMQ_PASSWORD` | Senha RabbitMQ (`admin` em `rabbit.hibit.com.br`) |
+| `APP_USER_PASSWORD` | Senha do usuário `hibit-app` (login no site) |
+| `MYSQL_PASSWORD` | Senha MySQL |
+| `RABBITMQ_PASSWORD` | Senha RabbitMQ |
 | `JWT_SECRET` | Chave JWT (mín. 32 caracteres) |
 | `ENCRYPTION_KEY` | AES-256 key (Base64, 32 bytes) |
 | `ENCRYPTION_IV` | AES IV (Base64, 16 bytes) |
-| `FTP_SERVER` | Host FTP (`ftp.hibit.com.br`) |
+| `FTP_SERVER` | Host FTP sem protocolo (ex.: `ftp.hibit.com.br`) |
 | `FTP_USERNAME` | Usuário FTP |
 | `FTP_PASSWORD` | Senha FTP |
 
-**Senha da aplicação (`APP_USER_PASSWORD`):** a migration só cria a tabela `usuarios`. Na **primeira subida** da API em produção, o `DatabaseInitializer` grava o usuário `hibit-app` com hash da senha configurada em `AppUser__Password` (via `web.config`). O frontend usa o **mesmo valor** (injetado no `appsettings.Production.json` no build). Não é senha da King.host.
+### Configurar Git Webhook na King.host (opcional)
 
-### Configurar Git Webhook na King.host (2 integrações)
+Se o Git Webhook estiver ativo e apontar para pastas diferentes, ele pode **sobrescrever** o FTP. Prefira desabilitá-lo enquanto o deploy for por FTP, ou alinhe:
 
-1. Painel → **Git Webhook** → **Habilitar** → **Conectar ao GitHub**
-2. Autorize o repositório `vladimirca2000/SiteHibit`
-3. **Integração 1 (frontend):** branch `release-www`, diretório **`/www/`**
-4. **Integração 2 (API):** branch `release-api`, diretório **`/API/`** (pasta `API`, **não** a raiz `/` e **não** `/www/API/`)
-
-A branch `master` continua com o código-fonte; o deploy compilado vai para `release-www` e `release-api`.
+1. Painel → **Git Webhook**
+2. Frontend: `release-www` → `/www/`
+3. API: `release-api` → `/API/` (pasta `API`, **não** a raiz `/`)
 
 ### Variáveis no painel King.host (API em `/API/`)
 
