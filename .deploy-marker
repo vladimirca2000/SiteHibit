@@ -1,0 +1,6 @@
+branch=release-www
+target=/www/
+stack=blazor-wasm
+sha=78bc3373c1769b06d8458b8eb16f29a54555ebee
+utc=2026-07-14T18:00:52Z
+run=29355989951/1
