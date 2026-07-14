@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="../frontend/hibit-blazor/Hibit.Web.csproj" />
   <Project Path="Hibit.Api/Hibit.Api.csproj" />
   <Project Path="Hibit.Application/Hibit.Application.csproj" />
   <Project Path="Hibit.Domain/Hibit.Domain.csproj" />

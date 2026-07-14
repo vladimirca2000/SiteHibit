@@ -56,7 +56,7 @@ jobs:
       Jwt__ExpirationMinutes: 60
       AppUser__Username: hibit-app
       AppUser__Password: hibit-app-ci
-      CORS_ORIGINS: http://localhost:4200
+      CORS_ORIGINS: http://localhost:5050
 
     steps:
       - uses: actions/checkout@v4
@@ -78,25 +78,23 @@ jobs:
   test-frontend:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: frontend/hibit-web
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: frontend/hibit-web/package-lock.json
+          dotnet-version: '8.0.x'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Publish Blazor WebAssembly
+        run: dotnet publish frontend/hibit-blazor/Hibit.Web.csproj -c Release -o publish/www-ci
 
-      - name: Build production
-        run: npm run build -- --configuration=production
+      - name: Verify frontend build
+        run: |
+          set -euo pipefail
+          test -f publish/www-ci/wwwroot/index.html
+          test -f publish/www-ci/wwwroot/web.config
+          test -d publish/www-ci/wwwroot/_framework
 
   deploy:
     needs: [test-backend, test-frontend]
@@ -106,30 +104,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: frontend/hibit-web/package-lock.json
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
       - name: Inject production app user password
-        working-directory: frontend/hibit-web
+        working-directory: frontend/hibit-blazor
         env:
           APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
         run: |
-          node -e "const fs=require('fs');const p='src/environments/environment.prod.ts';fs.writeFileSync(p,fs.readFileSync(p,'utf8').replace('REPLACE_IN_BUILD',process.env.APP_USER_PASSWORD||''));"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          password = os.environ.get("APP_USER_PASSWORD") or ""
+          for rel in ("wwwroot/appsettings.Production.json", "appsettings.Production.json"):
+              path = Path(rel)
+              text = path.read_text(encoding="utf-8")
+              path.write_text(text.replace("REPLACE_IN_BUILD", password), encoding="utf-8")
+          PY
 
       - name: Build frontend
-        working-directory: frontend/hibit-web
-        run: |
-          npm ci
-          npm run build -- --configuration=production
+        run: bash scripts/publish-frontend.sh
 
       - name: Publish API
         run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
@@ -176,20 +172,16 @@ jobs:
           ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
         run: bash scripts/generate-api-webconfig.sh publish/api
 
-      - name: Prepare frontend artifacts
-        run: |
-          mkdir -p publish/www
-          cp -r frontend/hibit-web/dist/hibit-web/browser/* publish/www/
-
       - name: Verify artifacts
         run: |
           set -euo pipefail
           test -f publish/www/index.html
           test -f publish/www/web.config
+          test -d publish/www/_framework
           test -f publish/api/Hibit.Api.dll
           test -f publish/api/web.config
           test -d publish/api/logs
-          echo "www  -> /www/     : index.html + web.config (SPA)"
+          echo "www  -> /www/     : index.html + web.config (Blazor WASM SPA)"
           echo "api  -> /www/API/ : Hibit.Api.dll + web.config (IIS)"
 
       - name: Publish release-www branch
@@ -317,7 +309,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Layout FTP esperado:"
-          echo "  /www/          <- Angular (release-www)"
+          echo "  /www/          <- Blazor WASM (release-www)"
           echo "  /www/API/      <- API .NET (release-api / FTP)"
           echo "  /API/          <- vazio (legado removido)"
           echo ""

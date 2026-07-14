@@ -2,7 +2,7 @@
 
 MySQL e RabbitMQ para desenvolvimento local. **Execute todos os comandos abaixo no terminal WSL.**
 
-Frontend e backend **não** rodam no Docker — use VS Code (`npm start`, porta 4200) e Visual Studio (`dotnet run`, porta 5000).
+Frontend e backend **não** rodam no Docker — use Visual Studio / `dotnet run` no Blazor (porta 5050) e no `Hibit.Api` (porta 5000).
 
 ## Pré-requisito
 
@@ -34,7 +34,7 @@ docker compose -f docker/docker-compose.yml logs -f mysql rabbitmq
 
 | Aplicação | Ferramenta | Porta |
 |-----------|------------|-------|
-| Frontend Angular | VS Code — `npm start` em `frontend/hibit-web` | 4200 |
+| Frontend Blazor WASM | Visual Studio / `dotnet run` em `frontend/hibit-blazor` | 5050 |
 | Backend .NET | Visual Studio — projeto `Hibit.Api` | 5000 |
 
 ## Parar

@@ -1,0 +1,103 @@
+@page "/"
+@using Hibit.Web.Content
+
+<PageTitle>Hibit | Desenvolvimento de software sob medida</PageTitle>
+
+<section class="hero" aria-labelledby="hero-title">
+    <div class="hero-bg" aria-hidden="true">
+        <img class="hero-photo" src="@SiteContent.HeroImageUrl" alt="" loading="eager" decoding="async" />
+        <div class="hero-grid-pattern"></div>
+        <div class="hero-glow"></div>
+    </div>
+    <div class="container hero-content">
+        <span class="hero-badge">@SiteContent.Home.HeroBadge</span>
+        <h1 id="hero-title" class="hero-title">@SiteContent.Home.HeroTitle</h1>
+        <p class="hero-subtitle">@SiteContent.Home.HeroSubtitle</p>
+        <div class="hero-actions">
+            <a href="/contato" class="btn btn-primary">@SiteContent.Home.CtaPrimary</a>
+            <a href="/sobre" class="btn btn-secondary">@SiteContent.Home.CtaSecondary</a>
+        </div>
+    </div>
+</section>
+
+<section class="stats" aria-label="Números da empresa">
+    <div class="container">
+        <div class="stats-grid">
+            @foreach (var stat in SiteContent.Home.Stats)
+            {
+                <div class="stat-item">
+                    <span class="stat-value">@stat.Value</span>
+                    <span class="stat-label">@stat.Label</span>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section id="servicos" class="services section-alt" aria-labelledby="services-title">
+    <div class="container">
+        <header class="section-header">
+            <span class="section-tag">@SiteContent.Home.ServicesLabel</span>
+            <h2 id="services-title" class="section-title">@SiteContent.Home.ServicesTitle</h2>
+            <p class="section-description">@SiteContent.Home.ServicesSubtitle</p>
+        </header>
+        <div class="services-grid">
+            @{ var i = 0; }
+            @foreach (var service in SiteContent.Home.Services)
+            {
+                i++;
+                <article class="service-card">
+                    <div class="service-icon" aria-hidden="true"><span>@i</span></div>
+                    <h3 class="service-title">@service.Title</h3>
+                    <p class="service-description">@service.Description</p>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="process section-dark" aria-labelledby="process-title">
+    <div class="container">
+        <header class="section-header">
+            <span class="section-tag">@SiteContent.Home.ProcessLabel</span>
+            <h2 id="process-title" class="section-title">@SiteContent.Home.ProcessTitle</h2>
+            <p class="section-description">@SiteContent.Home.ProcessSubtitle</p>
+        </header>
+        <div class="process-grid">
+            @foreach (var step in SiteContent.Home.Process)
+            {
+                <article class="process-card">
+                    <span class="process-step">@step.Step</span>
+                    <h3 class="process-title">@step.Title</h3>
+                    <p class="process-description">@step.Description</p>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="technologies" aria-labelledby="tech-title">
+    <div class="container">
+        <header class="section-header section-header-left">
+            <span class="section-tag">@SiteContent.Home.TechLabel</span>
+            <h2 id="tech-title" class="section-title">@SiteContent.Home.TechTitle</h2>
+            <p class="section-description">@SiteContent.Home.TechSubtitle</p>
+        </header>
+        <div class="tech-list">
+            @foreach (var tech in SiteContent.Home.Technologies)
+            {
+                <span class="tech-tag">@tech</span>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="cta-band" aria-labelledby="cta-title">
+    <div class="container cta-band-inner">
+        <div class="cta-band-text">
+            <h2 id="cta-title" class="cta-title">@SiteContent.Home.CtaTitle</h2>
+            <p class="cta-subtitle">@SiteContent.Home.CtaSubtitle</p>
+        </div>
+        <a href="/contato" class="btn btn-dark cta-band-btn">@SiteContent.Home.CtaButton</a>
+    </div>
+</section>

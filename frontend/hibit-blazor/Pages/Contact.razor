@@ -1,0 +1,167 @@
+@page "/contato"
+@inject IContactService ContactService
+@inject IAuthService AuthService
+@inject IOptions<ApiSettings> ApiOptions
+@using Hibit.Web.Content
+@using Hibit.Web.Models
+@using Microsoft.Extensions.Options
+
+<PageTitle>Hibit | Contato</PageTitle>
+
+<section class="contact-top" aria-labelledby="page-title">
+    <div class="container contact-top-inner">
+        <div class="contact-intro">
+            <p class="kicker">Contato</p>
+            <h1 id="page-title">@SiteContent.Contact.Title</h1>
+            <p class="lead">@SiteContent.Contact.Subtitle</p>
+        </div>
+        <ul class="channels">
+            <li>
+                <span>E-mail</span>
+                <a href="mailto:@ContactEmail">@ContactEmail</a>
+            </li>
+            <li>
+                <span>WhatsApp</span>
+                <a href="https://wa.me/@SiteContent.Company.WhatsApp" target="_blank" rel="noopener noreferrer">@SiteContent.Company.Phone</a>
+            </li>
+            <li>
+                <span>Horário</span>
+                <p>@SiteContent.Company.BusinessHours</p>
+            </li>
+        </ul>
+    </div>
+</section>
+
+<section class="contact-main">
+    <div class="container contact-shell">
+        <div class="form-pane">
+            @if (!string.IsNullOrEmpty(_successMessage))
+            {
+                <div class="toast toast-ok" role="status">@_successMessage</div>
+            }
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="toast toast-err" role="alert">@_errorMessage</div>
+            }
+
+            <h2 id="form-title">@SiteContent.Contact.FormTitle</h2>
+            <p class="form-hint">Campos com * são obrigatórios.</p>
+
+            <EditForm Model="@_formData" OnValidSubmit="HandleValidSubmit" class="soft-form">
+                <DataAnnotationsValidator />
+
+                <div class="soft-grid">
+                    <div class="soft-field">
+                        <label for="name">Nome *</label>
+                        <InputText id="name" @bind-Value="_formData.Name" autocomplete="name" placeholder="Como podemos te chamar?" />
+                        <ValidationMessage For="@(() => _formData.Name)" />
+                    </div>
+                    <div class="soft-field">
+                        <label for="email">E-mail *</label>
+                        <InputText id="email" @bind-Value="_formData.Email" type="email" autocomplete="email" placeholder="voce@empresa.com" />
+                        <ValidationMessage For="@(() => _formData.Email)" />
+                    </div>
+                    <div class="soft-field">
+                        <label for="phone">Telefone</label>
+                        <InputText id="phone" @bind-Value="_formData.Phone" autocomplete="tel" inputmode="numeric"
+                                   placeholder="(35) 92001-4611" @oninput="OnPhoneInput" />
+                    </div>
+                    <div class="soft-field">
+                        <label for="subject">Assunto *</label>
+                        <InputText id="subject" @bind-Value="_formData.Subject" placeholder="Ex.: novo projeto, consultoria..." />
+                        <ValidationMessage For="@(() => _formData.Subject)" />
+                    </div>
+                    <div class="soft-field soft-field-full">
+                        <label for="message">Mensagem *</label>
+                        <InputTextArea id="message" @bind-Value="_formData.Message" rows="6"
+                                       placeholder="Conte um pouco sobre o que você precisa..." />
+                        <ValidationMessage For="@(() => _formData.Message)" />
+                    </div>
+                </div>
+
+                <div class="soft-footer">
+                    <label class="soft-consent">
+                        <InputCheckbox @bind-Value="_formData.ConsentGiven" />
+                        <span>Li e concordo com a <a href="/privacidade">Política de Privacidade</a> *</span>
+                    </label>
+                    <ValidationMessage For="@(() => _formData.ConsentGiven)" />
+
+                    <button type="submit" class="soft-submit" disabled="@_isSubmitting">
+                        @(_isSubmitting ? SiteContent.Contact.FormSubmitting : "Enviar mensagem →")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+
+        <aside class="info-pane">
+            <div class="place">
+                <p class="place-label">Onde estamos</p>
+                <p class="place-address">@SiteContent.Company.Address</p>
+            </div>
+            <div class="map-frame">
+                <iframe src="@MapEmbedUrl"
+                        title="@SiteContent.Contact.MapTitle"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        allowfullscreen></iframe>
+            </div>
+        </aside>
+    </div>
+</section>
+
+@code {
+    private ContactFormData _formData = new();
+    private bool _isSubmitting;
+    private string _successMessage = string.Empty;
+    private string _errorMessage = string.Empty;
+
+    private string ContactEmail =>
+        string.IsNullOrWhiteSpace(ApiOptions.Value.ContactEmail)
+            ? SiteContent.Company.Email
+            : ApiOptions.Value.ContactEmail;
+
+    private string MapEmbedUrl =>
+        string.IsNullOrWhiteSpace(ApiOptions.Value.MapEmbedUrl)
+            ? SiteContent.Company.MapEmbedUrl
+            : ApiOptions.Value.MapEmbedUrl;
+
+    private void OnPhoneInput(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString() ?? string.Empty;
+        _formData.Phone = ApplyPhoneMask(input);
+    }
+
+    private static string ApplyPhoneMask(string value)
+    {
+        var digitCount = value.Count(char.IsDigit);
+        var digits = new string(value.Where(char.IsDigit).ToArray())[..Math.Min(digitCount, 11)];
+
+        if (digits.Length <= 2) return digits;
+        if (digits.Length <= 6) return $"({digits[..2]}) {digits[2..]}";
+        if (digits.Length <= 10) return $"({digits[..2]}) {digits[2..6]}-{digits[6..]}";
+        return $"({digits[..2]}) {digits[2..7]}-{digits[7..]}";
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        _isSubmitting = true;
+        _successMessage = string.Empty;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            await AuthService.EnsureAuthenticatedAsync();
+            await ContactService.SubmitAsync(_formData);
+            _successMessage = SiteContent.Contact.SuccessMessage;
+            _formData = new ContactFormData();
+        }
+        catch (Exception)
+        {
+            _errorMessage = SiteContent.Contact.ErrorMessage;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

@@ -3,24 +3,15 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FRONTEND="$ROOT/frontend/hibit-web"
 WWWROOT="$ROOT/backend/Hibit.Api/wwwroot"
-DIST="$FRONTEND/dist/hibit-web/browser"
+PUBLISH_WWW="$ROOT/publish/www"
 
-echo "Building Angular frontend..."
-cd "$FRONTEND"
-npm ci
-npm run build -- --configuration=production
-
-if [ ! -d "$DIST" ]; then
-  echo "Build output not found at $DIST" >&2
-  exit 1
-fi
+bash "$ROOT/scripts/publish-frontend.sh"
 
 echo "Copying frontend build to $WWWROOT ..."
 find "$WWWROOT" -mindepth 1 ! -name '.gitkeep' -exec rm -rf {} + 2>/dev/null || true
 mkdir -p "$WWWROOT"
-cp -r "$DIST"/* "$WWWROOT/"
+cp -r "$PUBLISH_WWW"/* "$WWWROOT/"
 
 echo "Publishing .NET API..."
 cd "$ROOT/backend"

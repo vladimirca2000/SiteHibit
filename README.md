@@ -1,12 +1,10 @@
 ﻿# SiteHibit — Site institucional Hibit
 
-Site institucional da **Hibit** com backend .NET 8, frontend Angular, MySQL, RabbitMQ e deploy na King.host.
+Site institucional da **Hibit** com backend .NET 8, frontend Blazor WebAssembly, MySQL, RabbitMQ e deploy na King.host.
 
 ## Pré-requisitos
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Node.js 20+](https://nodejs.org/) e npm
-- [Angular CLI](https://angular.dev/tools/cli): `npm install -g @angular/cli`
 - [Docker](https://docs.docker.com/engine/install/) instalado **no WSL** (não é necessário Docker nativo no Windows)
 
 ## Desenvolvimento com Docker no WSL
@@ -33,7 +31,7 @@ docker compose -f docker/docker-compose.yml ps
 
 | Aplicação | Ferramenta | Porta |
 |-----------|------------|-------|
-| Frontend Angular | VS Code — `npm start` em `frontend/hibit-web` | 4200 |
+| Frontend Blazor WASM | Visual Studio / `dotnet run` em `frontend/hibit-blazor` | 5050 |
 | Backend .NET | Visual Studio — projeto `Hibit.Api` | 5000 |
 | MySQL | Docker no WSL | 3306 |
 | RabbitMQ | Docker no WSL | 5672 / 15672 (UI) |
@@ -43,7 +41,7 @@ Se o backend no Visual Studio não conectar ao MySQL no WSL, use o IP do WSL na 
 ### Ordem de subida
 
 ```
-WSL: Docker (MySQL + RabbitMQ) → Visual Studio Backend (:5000) → VS Code Frontend (:4200)
+WSL: Docker (MySQL + RabbitMQ) → Visual Studio Backend (:5000) → Frontend Blazor (:5050)
 ```
 
 ## Configuração inicial
@@ -84,13 +82,12 @@ Credenciais do usuário de aplicação (local): `hibit-app` / `hibit-app-2026` (
 ## Frontend
 
 ```bash
-cd frontend/hibit-web
-npm install
-npm start
+cd frontend/hibit-blazor
+dotnet run
 ```
 
-- App: http://localhost:4200 (rodar no VS Code com `npm start`)
-- Paleta: branco, preto, cinza e verde (ver `src/styles/_variables.scss`)
+- App: http://localhost:5050
+- Paleta: branco, preto, cinza e verde (ver `wwwroot/styles/global.css`)
 
 ## Testes
 
@@ -104,7 +101,7 @@ dotnet test
 ```
 SiteHibit/
 ├── backend/          # .NET 8 Clean Architecture
-├── frontend/         # Angular (hibit-web)
+├── frontend/         # Blazor WASM (hibit-blazor)
 ├── docker/           # Docker Compose (MySQL + RabbitMQ)
 ├── scripts/          # Publish local
 ├── .github/workflows # CI/CD
@@ -124,11 +121,11 @@ Repositório: `git@github.com:vladimirca2000/SiteHibit.git`
 
 ## Deploy (King.host)
 
-Em produção na King.host (Windows), frontend e API ficam em **`/www/`** (Angular) e **`/www/API/`** (ASP.NET Core 8). A URL pública da API continua `https://hibit.com.br/API/` via `ASPNETCORE_PATHBASE=/API`.
+Em produção na King.host (Windows), frontend e API ficam em **`/www/`** (Blazor WASM) e **`/www/API/`** (ASP.NET Core 8). A URL pública da API continua `https://hibit.com.br/API/` via `ASPNETCORE_PATHBASE=/API`.
 
 | Caminho FTP | Conteúdo | URL pública |
 |-------------|----------|-------------|
-| `/www/` | Angular (site estático) | `https://hibit.com.br/` |
+| `/www/` | Blazor WASM (site estático) | `https://hibit.com.br/` |
 | `/www/API/` | ASP.NET Core 8 (API REST) | `https://hibit.com.br/API/` |
 
 A API **não** fica na raiz FTP `/API/`. Variáveis sensíveis vão no **`web.config`** de `/www/API/` (gerado no deploy).
@@ -169,11 +166,11 @@ Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-p
 
 Dispara em **push na branch `master`** (após merge do PR de `Development`).
 
-O pipeline **compila** Angular e API e publica branches de release no GitHub:
+O pipeline **compila** Blazor WASM e API e publica branches de release no GitHub:
 
 | Branch | Conteúdo | Destino King.host |
 |--------|----------|-------------------|
-| `release-www` | Angular build (estático) | `/www/` |
+| `release-www` | Blazor WASM publish | `/www/` |
 | `release-api` | `dotnet publish` + `web.config` IIS | **`/www/API/`** (dentro de www) |
 
 A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)).
@@ -182,7 +179,7 @@ A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([doc
 
 | Secret | Descrição |
 |--------|-----------|
-| `APP_USER_PASSWORD` | Senha do usuário `hibit-app` (login no site). Mesmo valor usado no seed do banco e no build Angular. Padrão: `hibit-app-2026` |
+| `APP_USER_PASSWORD` | Senha do usuário `hibit-app` (login no site). Mesmo valor usado no seed do banco e no build Blazor (`appsettings.Production.json`). Padrão: `hibit-app-2026` |
 | `MYSQL_PASSWORD` | Senha MySQL (`hibit` em `mysql.hibit.com.br`) |
 | `RABBITMQ_PASSWORD` | Senha RabbitMQ (`admin` em `rabbit.hibit.com.br`) |
 | `JWT_SECRET` | Chave JWT (mín. 32 caracteres) |
@@ -192,7 +189,7 @@ A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([doc
 | `FTP_USERNAME` | Usuário FTP |
 | `FTP_PASSWORD` | Senha FTP |
 
-**Senha da aplicação (`APP_USER_PASSWORD`):** a migration só cria a tabela `usuarios`. Na **primeira subida** da API em produção, o `DatabaseInitializer` grava o usuário `hibit-app` com hash da senha configurada em `AppUser__Password` (via `web.config`). O frontend usa o **mesmo valor** (injetado no build). Não é senha da King.host.
+**Senha da aplicação (`APP_USER_PASSWORD`):** a migration só cria a tabela `usuarios`. Na **primeira subida** da API em produção, o `DatabaseInitializer` grava o usuário `hibit-app` com hash da senha configurada em `AppUser__Password` (via `web.config`). O frontend usa o **mesmo valor** (injetado no `appsettings.Production.json` no build). Não é senha da King.host.
 
 ### Configurar Git Webhook na King.host (2 integrações)
 

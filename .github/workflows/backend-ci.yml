@@ -56,7 +56,7 @@ jobs:
       Jwt__ExpirationMinutes: 60
       AppUser__Username: hibit-app
       AppUser__Password: hibit-app-ci
-      CORS_ORIGINS: http://localhost:4200
+      CORS_ORIGINS: http://localhost:5050
 
     steps:
       - uses: actions/checkout@v4

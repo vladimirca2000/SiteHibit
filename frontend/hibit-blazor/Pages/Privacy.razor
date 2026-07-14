@@ -1,0 +1,37 @@
+@page "/privacidade"
+@using Hibit.Web.Content
+
+<PageTitle>Hibit | Privacidade</PageTitle>
+
+<section class="page-hero" aria-labelledby="page-title">
+    <div class="container page-hero-content">
+        <span class="section-tag">LGPD</span>
+        <h1 id="page-title" class="page-title">@SiteContent.Privacy.Title</h1>
+        <p class="page-subtitle">@SiteContent.Privacy.Summary</p>
+    </div>
+</section>
+
+<section class="privacy-content" aria-label="Seções da política de privacidade">
+    <div class="container privacy-narrow">
+        @foreach (var section in SiteContent.Privacy.Sections)
+        {
+            <article class="privacy-block">
+                <h2>@section.Title</h2>
+                <p>
+                    @if (section.Title == "Seus direitos")
+                    {
+                        <text>
+                            Você pode solicitar informações sobre o tratamento dos seus dados entrando em contato pelo
+                            e-mail <a href="mailto:@SiteContent.Company.Email">@SiteContent.Company.Email</a> ou pela nossa
+                            <a href="/contato">página de contato</a>.
+                        </text>
+                    }
+                    else
+                    {
+                        @section.Content
+                    }
+                </p>
+            </article>
+        }
+    </div>
+</section>
