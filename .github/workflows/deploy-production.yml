@@ -131,7 +131,6 @@ jobs:
         run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
 
       - name: Validate production secrets
-        id: secrets
         env:
           MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
           RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
@@ -139,9 +138,6 @@ jobs:
           APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -euo pipefail
           missing=0
@@ -154,13 +150,7 @@ jobs:
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
-          if [ -n "${FTP_SERVER:-}" ] && [ -n "${FTP_USERNAME:-}" ] && [ -n "${FTP_PASSWORD:-}" ]; then
-            echo "ftp=1" >> "$GITHUB_OUTPUT"
-            echo "FTP configurado: limpeza e deploy direto em /www/ e /www/API/"
-          else
-            echo "ftp=0" >> "$GITHUB_OUTPUT"
-            echo "::warning::FTP_* ausente — pulando limpeza FTP. Configure FTP_SERVER, FTP_USERNAME e FTP_PASSWORD para limpar e publicar via FTP."
-          fi
+          echo "Secrets OK. Deploy via Git Webhook: release-www -> /www/, release-api -> /www/API/"
 
       - name: Generate production web.config for IIS
         env:
@@ -172,153 +162,123 @@ jobs:
           ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
         run: bash scripts/generate-api-webconfig.sh publish/api
 
-      - name: Verify artifacts
+      - name: Verify artifacts (Blazor WASM + API)
         run: |
           set -euo pipefail
           test -f publish/www/index.html
           test -f publish/www/web.config
           test -d publish/www/_framework
+          test -f publish/www/_framework/blazor.webassembly.js
+          grep -q 'blazor.webassembly.js' publish/www/index.html
+          grep -q 'HIBIT' publish/www/index.html
+          ! grep -q 'app-root\|data-beasties-container\|main-.*\.js' publish/www/index.html
           test -f publish/api/Hibit.Api.dll
           test -f publish/api/web.config
           test -d publish/api/logs
-          echo "www  -> /www/     : index.html + web.config (Blazor WASM SPA)"
-          echo "api  -> /www/API/ : Hibit.Api.dll + web.config (IIS)"
+          echo "OK Blazor WASM -> release-www (/www/)"
+          echo "OK API .NET     -> release-api (/www/API/)"
 
-      - name: Publish release-www branch
-        working-directory: publish/www
+      - name: Publish release-www (Blazor WASM)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          SRC="${GITHUB_WORKSPACE}/publish/www"
+          WORK="$(mktemp -d)"
+          cd "$WORK"
           git init
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Deploy www ${GITHUB_SHA::7} -> /www/"
-          git branch -M release-www
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push -f origin release-www
+          if git fetch origin release-www:refs/remotes/origin/release-www; then
+            git checkout -B release-www origin/release-www
+            git rm -rf . >/dev/null 2>&1 || true
+            find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          else
+            git checkout --orphan release-www
+          fi
+          cp -a "${SRC}/." .
+          {
+            echo "branch=release-www"
+            echo "target=/www/"
+            echo "stack=blazor-wasm"
+            echo "sha=${GITHUB_SHA}"
+            echo "utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run=${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}"
+          } > .deploy-marker
+          test -f _framework/blazor.webassembly.js
+          grep -q 'blazor.webassembly.js' index.html
+          git add -A
+          git commit -m "Deploy www ${GITHUB_SHA::7} (Blazor WASM) -> /www/"
+          git push -f origin HEAD:release-www
+          echo "Published release-www for King.host Git Webhook -> /www/"
 
-      - name: Publish release-api branch
-        working-directory: publish/api
+      - name: Publish release-api (ASP.NET Core)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          SRC="${GITHUB_WORKSPACE}/publish/api"
+          WORK="$(mktemp -d)"
+          cd "$WORK"
           git init
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Deploy api ${GITHUB_SHA::7} -> /www/API/"
-          git branch -M release-api
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push -f origin release-api
+          if git fetch origin release-api:refs/remotes/origin/release-api; then
+            git checkout -B release-api origin/release-api
+            git rm -rf . >/dev/null 2>&1 || true
+            find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          else
+            git checkout --orphan release-api
+          fi
+          cp -a "${SRC}/." .
+          {
+            echo "branch=release-api"
+            echo "target=/www/API/"
+            echo "stack=aspnetcore"
+            echo "sha=${GITHUB_SHA}"
+            echo "utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run=${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}"
+          } > .deploy-marker
+          test -f Hibit.Api.dll
+          test -f web.config
+          git add -A
+          git commit -m "Deploy api ${GITHUB_SHA::7} (ASP.NET Core) -> /www/API/"
+          git push -f origin HEAD:release-api
+          echo "Published release-api for King.host Git Webhook -> /www/API/"
 
-      - name: Prepare empty folder for FTP cleanup
-        if: steps.secrets.outputs.ftp == '1'
-        run: mkdir -p publish/empty
-
-      - name: Deploy frontend to www/ via FTP
-        id: ftp-www
-        if: steps.secrets.outputs.ftp == '1'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/www/
-          server-dir: www/
-          dangerous-clean-slate: true
-
-      - name: Deploy frontend via FTPS (fallback)
-        id: ftp-www-ftps
-        if: steps.secrets.outputs.ftp == '1' && steps.ftp-www.outcome == 'failure'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 990
-          protocol: ftps
-          security: loose
-          local-dir: publish/www/
-          server-dir: www/
-          dangerous-clean-slate: true
-
-      - name: Deploy API to www/API/ via FTP
-        id: ftp-api
-        if: steps.secrets.outputs.ftp == '1'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/api/
-          server-dir: www/API/
-          dangerous-clean-slate: true
-
-      - name: Deploy API via FTPS (fallback)
-        id: ftp-api-ftps
-        if: steps.secrets.outputs.ftp == '1' && steps.ftp-api.outcome == 'failure'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 990
-          protocol: ftps
-          security: loose
-          local-dir: publish/api/
-          server-dir: www/API/
-          dangerous-clean-slate: true
-
-      - name: Clean stale API/ at FTP root (fora de www/)
-        if: steps.secrets.outputs.ftp == '1'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/empty/
-          server-dir: API/
-          dangerous-clean-slate: true
-
-      - name: FTP deploy summary
-        if: always() && steps.secrets.outputs.ftp == '1'
+      - name: Verify production endpoints (Git Webhook sync)
         run: |
-          echo "FTP www  (21):  ${{ steps.ftp-www.outcome }}"
-          echo "FTP www  (990): ${{ steps.ftp-www-ftps.outcome || 'skipped' }}"
-          echo "FTP API  (21):  ${{ steps.ftp-api.outcome }}"
-          echo "FTP API  (990): ${{ steps.ftp-api-ftps.outcome || 'skipped' }}"
-          if [ "${{ steps.ftp-www.outcome }}" != "success" ] && [ "${{ steps.ftp-www-ftps.outcome }}" != "success" ]; then
-            echo "::warning::FTP frontend falhou. Confira FTP_SERVER (sem https://), usuario/senha FTP da King.host e teste no FileZilla."
+          set -euo pipefail
+          echo "Esperado apos sync King.host:"
+          echo "  release-www -> /www/     (Blazor WASM)"
+          echo "  release-api -> /www/API/ (ASP.NET Core)"
+          echo ""
+
+          site_ok=0
+          for i in 1 2 3 4 5 6; do
+            html="$(curl -fsS --connect-timeout 30 -H 'Cache-Control: no-cache' "https://hibit.com.br/?t=${GITHUB_RUN_ID}-${i}" || true)"
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 30 -H 'Cache-Control: no-cache' "https://hibit.com.br/?t=${GITHUB_RUN_ID}-${i}" || true)"
+            echo "Attempt ${i}: site HTTP ${code}"
+            if [ "$code" = "200" ] && printf '%s' "$html" | grep -q 'blazor.webassembly.js'; then
+              echo "Site OK: Blazor WASM detectado em producao."
+              site_ok=1
+              break
+            fi
+            if printf '%s' "$html" | grep -qE 'app-root|data-beasties-container'; then
+              echo "Ainda Angular legado no document root; aguardando Git Webhook King.host..."
+            fi
+            sleep 20
+          done
+          if [ "$site_ok" -ne 1 ]; then
+            echo "::warning::Site ainda nao serve Blazor. Confirme no painel King.host: Git Webhook release-www -> /www/ e force sync."
           fi
 
-      - name: Verify production endpoints
-        run: |
-          set -euo pipefail
-          echo "Layout FTP esperado:"
-          echo "  /www/          <- Blazor WASM (release-www)"
-          echo "  /www/API/      <- API .NET (release-api / FTP)"
-          echo "  /API/          <- vazio (legado removido)"
-          echo ""
-          echo "Site:"
-          curl -fsS -o /dev/null -w "  https://hibit.com.br/ -> HTTP %{http_code}\n" --connect-timeout 30 https://hibit.com.br/
           echo "API health:"
           code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 30 https://hibit.com.br/API/health || true)"
           body="$(curl -sS --connect-timeout 30 https://hibit.com.br/API/health || true)"
           echo "  https://hibit.com.br/API/health -> HTTP ${code} (${body})"
           if [ "$code" != "200" ]; then
-            echo "::warning::Health check nao retornou 200. Verifique ANCM em /www/API/ e logs stdout."
+            echo "::warning::Health check nao retornou 200. Confirme webhook release-api -> /www/API/ e ANCM no painel."
           fi
