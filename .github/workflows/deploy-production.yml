@@ -150,7 +150,7 @@ jobs:
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
-          echo "Secrets OK. Deploy via Git Webhook: release-www -> /www/, release-api -> /www/API/"
+          echo "Secrets OK. Deploy via Git Webhook: release-www -> /www/, release-api -> /API/"
 
       - name: Generate production web.config for IIS
         env:
@@ -176,7 +176,7 @@ jobs:
           test -f publish/api/web.config
           test -d publish/api/logs
           echo "OK Blazor WASM -> release-www (/www/)"
-          echo "OK API .NET     -> release-api (/www/API/)"
+          echo "OK API .NET     -> release-api (/API/)  [nao na raiz FTP]"
 
       - name: Publish release-www (Blazor WASM)
         env:
@@ -235,7 +235,7 @@ jobs:
           cp -a "${SRC}/." .
           {
             echo "branch=release-api"
-            echo "target=/www/API/"
+            echo "target=/API/"
             echo "stack=aspnetcore"
             echo "sha=${GITHUB_SHA}"
             echo "utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -244,16 +244,16 @@ jobs:
           test -f Hibit.Api.dll
           test -f web.config
           git add -A
-          git commit -m "Deploy api ${GITHUB_SHA::7} (ASP.NET Core) -> /www/API/"
+          git commit -m "Deploy api ${GITHUB_SHA::7} (ASP.NET Core) -> /API/"
           git push -f origin HEAD:release-api
-          echo "Published release-api for King.host Git Webhook -> /www/API/"
+          echo "Published release-api for King.host Git Webhook -> /API/ (nao na raiz)"
 
       - name: Verify production endpoints (Git Webhook sync)
         run: |
           set -euo pipefail
           echo "Esperado apos sync King.host:"
-          echo "  release-www -> /www/     (Blazor WASM)"
-          echo "  release-api -> /www/API/ (ASP.NET Core)"
+          echo "  release-www -> /www/  (Blazor WASM)"
+          echo "  release-api -> /API/  (ASP.NET Core; pasta API, nao a raiz FTP)"
           echo ""
 
           site_ok=0
@@ -280,5 +280,5 @@ jobs:
           body="$(curl -sS --connect-timeout 30 https://hibit.com.br/API/health || true)"
           echo "  https://hibit.com.br/API/health -> HTTP ${code} (${body})"
           if [ "$code" != "200" ]; then
-            echo "::warning::Health check nao retornou 200. Confirme webhook release-api -> /www/API/ e ANCM no painel."
+            echo "::warning::Health check nao retornou 200. Confirme webhook release-api -> /API/ (pasta API, nao raiz) e ANCM no painel."
           fi
