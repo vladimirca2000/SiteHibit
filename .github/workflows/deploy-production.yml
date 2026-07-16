@@ -7,10 +7,10 @@ on:
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test-backend:
@@ -87,14 +87,14 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Publish Blazor WebAssembly
-        run: dotnet publish frontend/hibit-blazor/Hibit.Web.csproj -c Release -o publish/www-ci
+        run: bash scripts/publish-frontend.sh
 
       - name: Verify frontend build
         run: |
           set -euo pipefail
-          test -f publish/www-ci/wwwroot/index.html
-          test -f publish/www-ci/wwwroot/web.config
-          test -d publish/www-ci/wwwroot/_framework
+          test -f publish/www/index.html
+          test -f publish/www/web.config
+          test -d publish/www/_framework
 
   deploy:
     needs: [test-backend, test-frontend]
@@ -109,26 +109,18 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Inject production app user password
-        working-directory: frontend/hibit-blazor
-        env:
-          APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
-        run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          password = os.environ.get("APP_USER_PASSWORD") or ""
-          for rel in ("wwwroot/appsettings.Production.json", "appsettings.Production.json"):
-              path = Path(rel)
-              text = path.read_text(encoding="utf-8")
-              path.write_text(text.replace("REPLACE_IN_BUILD", password), encoding="utf-8")
-          PY
-
       - name: Build frontend
         run: bash scripts/publish-frontend.sh
 
       - name: Publish API
-        run: dotnet publish backend/Hibit.Api/Hibit.Api.csproj -c Release -o publish/api
+        run: bash scripts/publish-api.sh
+        env:
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
 
       - name: Validate production secrets
         id: secrets
@@ -156,21 +148,11 @@ jobs:
           fi
           if [ -n "${FTP_SERVER:-}" ] && [ -n "${FTP_USERNAME:-}" ] && [ -n "${FTP_PASSWORD:-}" ]; then
             echo "ftp=1" >> "$GITHUB_OUTPUT"
-            echo "FTP configurado: limpeza e deploy direto em /www/ e /www/API/"
+            echo "FTP configurado: deploy direto em /www/ e /www/API/"
           else
             echo "ftp=0" >> "$GITHUB_OUTPUT"
-            echo "::warning::FTP_* ausente — pulando limpeza FTP. Configure FTP_SERVER, FTP_USERNAME e FTP_PASSWORD para limpar e publicar via FTP."
+            echo "::warning::FTP_* ausente — pulando deploy FTP. Configure FTP_SERVER, FTP_USERNAME e FTP_PASSWORD para publicar via FTP."
           fi
-
-      - name: Generate production web.config for IIS
-        env:
-          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
-          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-          ENCRYPTION_IV: ${{ secrets.ENCRYPTION_IV }}
-        run: bash scripts/generate-api-webconfig.sh publish/api
 
       - name: Verify artifacts
         run: |
@@ -184,70 +166,9 @@ jobs:
           echo "www  -> /www/     : index.html + web.config (Blazor WASM SPA)"
           echo "api  -> /www/API/ : Hibit.Api.dll + web.config (IIS)"
 
-      - name: Publish release-www branch
-        working-directory: publish/www
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Deploy www ${GITHUB_SHA::7} -> /www/"
-          git branch -M release-www
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push -f origin release-www
-
-      - name: Publish release-api branch
-        working-directory: publish/api
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Deploy api ${GITHUB_SHA::7} -> /www/API/"
-          git branch -M release-api
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push -f origin release-api
-
-      - name: Prepare empty folder for FTP cleanup
+      - name: Create empty folder for legacy cleanup
         if: steps.secrets.outputs.ftp == '1'
         run: mkdir -p publish/empty
-
-      - name: Deploy frontend to www/ via FTP
-        id: ftp-www
-        if: steps.secrets.outputs.ftp == '1'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          local-dir: publish/www/
-          server-dir: www/
-          dangerous-clean-slate: true
-
-      - name: Deploy frontend via FTPS (fallback)
-        id: ftp-www-ftps
-        if: steps.secrets.outputs.ftp == '1' && steps.ftp-www.outcome == 'failure'
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 990
-          protocol: ftps
-          security: loose
-          local-dir: publish/www/
-          server-dir: www/
-          dangerous-clean-slate: true
 
       - name: Deploy API to www/API/ via FTP
         id: ftp-api
@@ -280,7 +201,37 @@ jobs:
           server-dir: www/API/
           dangerous-clean-slate: true
 
-      - name: Clean stale API/ at FTP root (fora de www/)
+      - name: Deploy frontend to www/ via FTP
+        id: ftp-www
+        if: steps.secrets.outputs.ftp == '1'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          local-dir: publish/www/
+          server-dir: www/
+
+      - name: Deploy frontend via FTPS (fallback)
+        id: ftp-www-ftps
+        if: steps.secrets.outputs.ftp == '1' && steps.ftp-www.outcome == 'failure'
+        continue-on-error: true
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 990
+          protocol: ftps
+          security: loose
+          local-dir: publish/www/
+          server-dir: www/
+
+      - name: Clean stale API/ at FTP root (legado)
+        id: ftp-clean-legacy
         if: steps.secrets.outputs.ftp == '1'
         continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -297,28 +248,34 @@ jobs:
       - name: FTP deploy summary
         if: always() && steps.secrets.outputs.ftp == '1'
         run: |
-          echo "FTP www  (21):  ${{ steps.ftp-www.outcome }}"
-          echo "FTP www  (990): ${{ steps.ftp-www-ftps.outcome || 'skipped' }}"
           echo "FTP API  (21):  ${{ steps.ftp-api.outcome }}"
           echo "FTP API  (990): ${{ steps.ftp-api-ftps.outcome || 'skipped' }}"
-          if [ "${{ steps.ftp-www.outcome }}" != "success" ] && [ "${{ steps.ftp-www-ftps.outcome }}" != "success" ]; then
-            echo "::warning::FTP frontend falhou. Confira FTP_SERVER (sem https://), usuario/senha FTP da King.host e teste no FileZilla."
+          echo "FTP www  (21):  ${{ steps.ftp-www.outcome }}"
+          echo "FTP www  (990): ${{ steps.ftp-www-ftps.outcome || 'skipped' }}"
+          api_ok="${{ steps.ftp-api.outcome == 'success' || steps.ftp-api-ftps.outcome == 'success' }}"
+          www_ok="${{ steps.ftp-www.outcome == 'success' || steps.ftp-www-ftps.outcome == 'success' }}"
+          if [ "$api_ok" != "true" ] || [ "$www_ok" != "true" ]; then
+            echo "::error::Deploy FTP falhou (API ou www). Verifique FTP_SERVER (sem https://), usuario/senha FTP da King.host e teste no FileZilla."
+            exit 1
           fi
 
       - name: Verify production endpoints
+        if: always() && steps.secrets.outputs.ftp == '1'
         run: |
-          set -euo pipefail
           echo "Layout FTP esperado:"
-          echo "  /www/          <- Blazor WASM (release-www)"
-          echo "  /www/API/      <- API .NET (release-api / FTP)"
+          echo "  /www/          <- Blazor WASM"
+          echo "  /www/API/      <- API .NET"
           echo "  /API/          <- vazio (legado removido)"
           echo ""
-          echo "Site:"
-          curl -fsS -o /dev/null -w "  https://hibit.com.br/ -> HTTP %{http_code}\n" --connect-timeout 30 https://hibit.com.br/
-          echo "API health:"
-          code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 30 https://hibit.com.br/API/health || true)"
+          sleep 10
+          code_home="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 30 --retry 3 --retry-delay 20 https://hibit.com.br/ || true)"
+          echo "  https://hibit.com.br/ -> HTTP ${code_home}"
+          if [ "$code_home" != "200" ]; then
+            echo "::warning::Homepage nao retornou 200 (${code_home})."
+          fi
+          code_api="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 30 --retry 3 --retry-delay 20 https://hibit.com.br/API/health || true)"
           body="$(curl -sS --connect-timeout 30 https://hibit.com.br/API/health || true)"
-          echo "  https://hibit.com.br/API/health -> HTTP ${code} (${body})"
-          if [ "$code" != "200" ]; then
-            echo "::warning::Health check nao retornou 200. Verifique ANCM em /www/API/ e logs stdout."
+          echo "  https://hibit.com.br/API/health -> HTTP ${code_api} (${body})"
+          if [ "$code_api" != "200" ]; then
+            echo "::warning::Health check da API nao retornou 200 (${code_api}). Verifique ANCM em /www/API/ e logs stdout."
           fi

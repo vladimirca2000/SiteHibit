@@ -1,6 +1,5 @@
 using Hibit.Application.Contact;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -8,7 +7,6 @@ namespace Hibit.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class ContactController : ControllerBase
 {
     private readonly IMediator _mediator;

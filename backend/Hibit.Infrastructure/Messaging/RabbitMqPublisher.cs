@@ -1,4 +1,5 @@
 using System.Text;
+using Hibit.Application.Common.Exceptions;
 using Hibit.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -22,21 +23,29 @@ public class RabbitMqPublisher : IMessagePublisher, IDisposable
 
     public Task PublishAsync(string payload, CancellationToken cancellationToken = default)
     {
-        EnsureChannel();
+        try
+        {
+            EnsureChannel();
 
-        var body = Encoding.UTF8.GetBytes(payload);
-        var properties = _channel!.CreateBasicProperties();
-        properties.ContentType = "application/octet-stream";
-        properties.DeliveryMode = 2;
+            var body = Encoding.UTF8.GetBytes(payload);
+            var properties = _channel!.CreateBasicProperties();
+            properties.ContentType = "application/octet-stream";
+            properties.DeliveryMode = 2;
 
-        _channel.BasicPublish(
-            exchange: string.Empty,
-            routingKey: _options.Queue,
-            basicProperties: properties,
-            body: body);
+            _channel.BasicPublish(
+                exchange: string.Empty,
+                routingKey: _options.Queue,
+                basicProperties: properties,
+                body: body);
 
-        _logger.LogInformation("Contact message published to queue {QueueName}.", _options.Queue);
-        return Task.CompletedTask;
+            _logger.LogInformation("Contact message published to queue {QueueName}.", _options.Queue);
+            return Task.CompletedTask;
+        }
+        catch (Exception ex) when (ex is not MessagingUnavailableException)
+        {
+            _logger.LogError(ex, "Failed to publish contact message to queue {QueueName}.", _options.Queue);
+            throw new MessagingUnavailableException("O servico de mensageria esta indisponivel.", ex);
+        }
     }
 
     private void EnsureChannel()

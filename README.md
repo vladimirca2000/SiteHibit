@@ -74,10 +74,11 @@ dotnet run --project Hibit.Api
 
 - API: http://localhost:5000
 - Health: http://localhost:5000/health
-- Login (JWT): `POST http://localhost:5000/api/auth/login`
+- Login (JWT, reservado para uso admin futuro): `POST http://localhost:5000/api/auth/login`
+- Contato (anônimo, com rate limiting): `POST http://localhost:5000/api/contact`
 - Swagger (Development): http://localhost:5000/swagger
 
-Credenciais do usuário de aplicação (local): `hibit-app` / `hibit-app-2026` (ver `.env.example`).
+O endpoint público de **contato não exige autenticação** — o Blazor WASM chama `/api/contact` diretamente, sem credenciais no cliente. O fluxo de login/JWT (`hibit-app`) permanece na API para uso administrativo futuro, mas não é usado pelo site público.
 
 ## Frontend
 
@@ -113,9 +114,9 @@ SiteHibit/
 | Branch | Uso |
 |--------|-----|
 | `Development` | Desenvolvimento e PRs |
-| `master` | Produção — merge dispara deploy automático |
+| `master` | Produção — merge dispara deploy automático via FTP |
 
-Fluxo: PR **`Development` → `master`** (aprovado e mergeado) → GitHub Actions publica na King.host.
+Fluxo: PR **`Development` → `master`** (aprovado e mergeado) → GitHub Actions publica via FTP na King.host (`/www/` e `/www/API/`).
 
 Repositório: `git@github.com:vladimirca2000/SiteHibit.git`
 
@@ -130,7 +131,7 @@ Em produção na King.host (Windows), frontend e API ficam em **`/www/`** (Blazo
 
 A API **não** fica na raiz FTP `/API/`. Variáveis sensíveis vão no **`web.config`** de `/www/API/` (gerado no deploy).
 
-O frontend chama a API em `/API` (ex.: `/API/api/auth/login`, `/API/health`).
+O frontend chama a API em `/API` (ex.: `/API/api/contact`, `/API/health`). O contato é anônimo (sem JWT no cliente).
 
 ### Scripts de publish local
 
@@ -158,47 +159,38 @@ chmod +x scripts/publish-api.sh
 ./scripts/publish-api.sh
 ```
 
-Gera `publish/api/`.
+Gera `publish/api/` (com `web.config` de produção se as variáveis de ambiente estiverem definidas).
 
-### GitHub Actions + King.host Git Webhook
+### GitHub Actions + FTP (King.host)
 
 Workflow: [`.github/workflows/deploy-production.yml`](.github/workflows/deploy-production.yml)
 
 Dispara em **push na branch `master`** (após merge do PR de `Development`).
 
-O pipeline **compila** Blazor WASM e API e publica branches de release no GitHub:
+O pipeline **compila** Blazor WASM e API, gera o `web.config` de produção com os secrets e publica via **FTP direto** na King.host:
 
-| Branch | Conteúdo | Destino King.host |
-|--------|----------|-------------------|
-| `release-www` | Blazor WASM publish | `/www/` |
-| `release-api` | `dotnet publish` + `web.config` IIS | **`/www/API/`** (dentro de www) |
+| Artefato | Destino FTP | URL pública |
+|----------|-------------|-------------|
+| `publish/api/` | `/www/API/` (clean-slate, pasta própria) | `https://hibit.com.br/API/` |
+| `publish/www/` | `/www/` (sobrescreve, sem apagar `/www/API/`) | `https://hibit.com.br/` |
 
-A King.host sincroniza cada branch com o FTP via **Git Webhook** no painel ([documentação](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)).
+Ordem do deploy: **API primeiro** (clean-slate em `/www/API/`) → **frontend** (sync em `/www/` sem `dangerous-clean-slate`, para não apagar a API). Há fallback automático para FTPS (porta 990) se o FTP na porta 21 falhar. Se ambos os canais falharem (API ou www), o workflow **falha** explicitamente.
 
 **Secrets** (Settings → Environments → **production** → Environment secrets):
 
 | Secret | Descrição |
 |--------|-----------|
-| `APP_USER_PASSWORD` | Senha do usuário `hibit-app` (login no site). Mesmo valor usado no seed do banco e no build Blazor (`appsettings.Production.json`). Padrão: `hibit-app-2026` |
+| `APP_USER_PASSWORD` | Senha do usuário `hibit-app` (seed do banco, via `web.config` da API). Reservado para uso admin futuro. |
 | `MYSQL_PASSWORD` | Senha MySQL (`hibit` em `mysql.hibit.com.br`) |
 | `RABBITMQ_PASSWORD` | Senha RabbitMQ (`admin` em `rabbit.hibit.com.br`) |
 | `JWT_SECRET` | Chave JWT (mín. 32 caracteres) |
 | `ENCRYPTION_KEY` | AES-256 key (Base64, 32 bytes) |
 | `ENCRYPTION_IV` | AES IV (Base64, 16 bytes) |
-| `FTP_SERVER` | Host FTP (`ftp.hibit.com.br`) |
+| `FTP_SERVER` | Host FTP (`ftp.hibit.com.br`, sem `https://`) |
 | `FTP_USERNAME` | Usuário FTP |
 | `FTP_PASSWORD` | Senha FTP |
 
-**Senha da aplicação (`APP_USER_PASSWORD`):** a migration só cria a tabela `usuarios`. Na **primeira subida** da API em produção, o `DatabaseInitializer` grava o usuário `hibit-app` com hash da senha configurada em `AppUser__Password` (via `web.config`). O frontend usa o **mesmo valor** (injetado no `appsettings.Production.json` no build). Não é senha da King.host.
-
-### Configurar Git Webhook na King.host (2 integrações)
-
-1. Painel → **Git Webhook** → **Habilitar** → **Conectar ao GitHub**
-2. Autorize o repositório `vladimirca2000/SiteHibit`
-3. **Integração 1 (frontend):** branch `release-www`, diretório **`/www/`**
-4. **Integração 2 (API):** branch `release-api`, diretório **`/www/API/`** (dentro de www, não `/API/` na raiz FTP)
-
-A branch `master` continua com o código-fonte; o deploy compilado vai para `release-www` e `release-api`.
+**Senha da aplicação (`APP_USER_PASSWORD`):** a migration só cria a tabela `usuarios`. Na **primeira subida** da API em produção, o `DatabaseInitializer` grava o usuário `hibit-app` com hash da senha configurada em `AppUser__Password` (via `web.config`). Essa senha **não é mais embarcada no frontend Blazor** (o contato é anônimo). Não é senha da King.host.
 
 ### Variáveis no painel King.host (API em `/API/`)
 
@@ -228,12 +220,11 @@ Encryption__Iv=***
 
 ### Checklist King.host
 
-1. Configurar **Git Webhook** (GitHub) — ver [wiki King.host](https://king.host/wiki/artigo/como-integrar-github-ao-painel-kinghost/)
-2. Webhook frontend: `release-www` → `/www/`
-3. Webhook API: `release-api` → **`/www/API/`**
-4. Configurar ASP.NET Core 8 em **hibit.com.br** (caminho **`\API`**, não `\www\API`)
-5. MySQL: `mysql.hibit.com.br` / database `hibit` / user `hibit`
-6. RabbitMQ: `rabbit.hibit.com.br` / user `admin` / fila `hibit.contact`
-7. HTTPS ativo no domínio
+1. Configurar ASP.NET Core 8 em **hibit.com.br** (caminho **`\API`**, não `\www\API`)
+2. MySQL: `mysql.hibit.com.br` / database `hibit` / user `hibit`
+3. RabbitMQ: `rabbit.hibit.com.br` / user `admin` / fila `hibit.contact`
+4. HTTPS ativo no domínio
+5. Secrets do environment `production` no GitHub (ver tabela acima)
+6. FTP testado no FileZilla com `FTP_SERVER`/`FTP_USERNAME`/`FTP_PASSWORD`
 
 Consulte `.env.example` para a lista completa de variáveis.

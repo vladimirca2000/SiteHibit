@@ -1,5 +1,5 @@
+using System.Net;
 using System.Net.Http.Json;
-using Microsoft.Extensions.Options;
 using Hibit.Web.Models;
 
 namespace Hibit.Web.Services;
@@ -13,11 +13,9 @@ public class ContactService : IContactService
 {
     private readonly HttpClient _http;
 
-    public ContactService(HttpClient http, IOptions<ApiSettings> settings)
+    public ContactService(HttpClient http)
     {
         _http = http;
-        // BaseAddress já configurado no Program.cs via HttpClientFactory
-        // Se precisar de ApiUrl aqui, use settings.Value.ApiUrl
     }
 
     public async Task<ContactResponse> SubmitAsync(ContactFormData data)
@@ -31,11 +29,39 @@ public class ContactService : IContactService
         }
 
         var error = await response.Content.ReadAsStringAsync();
-        throw new HttpRequestException($"Erro ao enviar mensagem: {response.StatusCode} - {error}");
+
+        throw new ContactSubmissionException(response.StatusCode, error);
     }
 }
 
 public class ContactResponse
 {
     public string Message { get; set; } = string.Empty;
+}
+
+public class ContactSubmissionException : Exception
+{
+    public HttpStatusCode StatusCode { get; }
+
+    public ContactSubmissionException(HttpStatusCode statusCode, string error)
+        : base(BuildMessage(statusCode, error))
+    {
+        StatusCode = statusCode;
+    }
+
+    private static string BuildMessage(HttpStatusCode statusCode, string error)
+    {
+        return statusCode switch
+        {
+            HttpStatusCode.TooManyRequests =>
+                "Voce enviou muitas mensagens em pouco tempo. Aguarde alguns minutos e tente novamente.",
+            HttpStatusCode.BadRequest =>
+                string.IsNullOrWhiteSpace(error)
+                    ? "Dados invalidos. Verifique os campos e tente novamente."
+                    : $"Dados invalidos: {error}",
+            HttpStatusCode.ServiceUnavailable =>
+                "O servico de mensageria esta indisponivel no momento. Tente novamente em instantes.",
+            _ => $"Erro ao enviar mensagem ({(int)statusCode}). Tente novamente."
+        };
+    }
 }

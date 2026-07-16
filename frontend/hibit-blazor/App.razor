@@ -1,5 +1,4 @@
 ﻿@inject IThemeService ThemeService
-@inject IAuthService AuthService
 
 <Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
@@ -24,13 +23,5 @@
     protected override async Task OnInitializedAsync()
     {
         await ThemeService.InitializeAsync();
-
-        try
-        {
-            await AuthService.EnsureAuthenticatedAsync();
-        }
-        catch
-        {
-        }
     }
 }

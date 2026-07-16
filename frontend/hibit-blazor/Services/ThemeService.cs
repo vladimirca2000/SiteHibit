@@ -32,7 +32,7 @@ public class ThemeService : IThemeService
         try
         {
             var saved = await _js.InvokeAsync<string?>("localStorage.getItem", "theme");
-            _isDarkMode = saved == "dark" || (saved == null && await _js.InvokeAsync<bool>("matchMedia('(prefers-color-scheme: dark)').matches"));
+            _isDarkMode = saved == "dark" || (saved == null && await _js.InvokeAsync<bool>("hibitTheme.prefersDark"));
         }
         catch
         {

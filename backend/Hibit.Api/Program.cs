@@ -7,6 +7,7 @@ using Hibit.Infrastructure.Auth;
 using Hibit.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -25,8 +26,6 @@ builder.Host.UseSerilog((context, configuration) =>
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-
-builder.Services.AddOptions<JwtOptions>().BindConfiguration(JwtOptions.SectionName);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer();
@@ -132,15 +131,79 @@ builder.Services.AddRateLimiter(options =>
         limiter.PermitLimit = 5;
         limiter.QueueLimit = 0;
     });
+    options.AddFixedWindowLimiter("login", limiter =>
+    {
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.PermitLimit = 10;
+        limiter.QueueLimit = 0;
+    });
 });
 
 var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 var pathBase = builder.Configuration["ASPNETCORE_PATHBASE"];
 if (!string.IsNullOrWhiteSpace(pathBase))
 {
     app.UsePathBase(pathBase);
 }
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        var logger = context.RequestServices.GetService<ILogger<Program>>();
+
+        if (exception is ValidationException validationException)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                title = "Validation failed",
+                errors = validationException.Errors
+            });
+            return;
+        }
+
+        if (exception is UnauthorizedException)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                title = "Unauthorized"
+            });
+            return;
+        }
+
+        if (exception is MessagingUnavailableException)
+        {
+            logger?.LogError(exception, "Messaging unavailable for {Method} {Path}", context.Request.Method, context.Request.Path);
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                title = "Servico de mensageria indisponivel."
+            });
+            return;
+        }
+
+        logger?.LogError(exception, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            title = "An unexpected error occurred."
+        });
+    });
+});
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
@@ -186,44 +249,6 @@ app.Use(async (context, next) =>
 
 app.UseCors("DefaultCors");
 app.UseRateLimiter();
-
-app.UseExceptionHandler(errorApp =>
-{
-    errorApp.Run(async context =>
-    {
-        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
-
-        if (exception is ValidationException validationException)
-        {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new
-            {
-                title = "Validation failed",
-                errors = validationException.Errors
-            });
-            return;
-        }
-
-        if (exception is UnauthorizedException)
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(new
-            {
-                title = "Unauthorized"
-            });
-            return;
-        }
-
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(new
-        {
-            title = "An unexpected error occurred."
-        });
-    });
-});
 
 app.UseAuthentication();
 app.UseAuthorization();

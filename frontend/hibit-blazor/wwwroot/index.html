@@ -32,6 +32,13 @@
         <a class="dismiss">✕</a>
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.hibitTheme = {
+            prefersDark: function () {
+                return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            }
+        };
+    </script>
 </body>
 
 </html>

@@ -25,7 +25,16 @@ public static class DependencyInjection
                 mySqlOptions => mySqlOptions.MigrationsAssembly(
                     typeof(AppDbContext).Assembly.GetName().Name)));
 
-        services.Configure<EncryptionOptions>(configuration.GetSection(EncryptionOptions.SectionName));
+        services.AddOptions<EncryptionOptions>()
+            .Bind(configuration.GetSection(EncryptionOptions.SectionName))
+            .Validate(opts =>
+                !string.IsNullOrWhiteSpace(opts.Key)
+                && !string.IsNullOrWhiteSpace(opts.Iv)
+                && TryFromBase64(opts.Key, out var key) && key.Length == 32
+                && TryFromBase64(opts.Iv, out var iv) && iv.Length == 16,
+                "Encryption Key must be 32 bytes (AES-256) and IV must be 16 bytes, both valid Base64 strings.")
+            .ValidateOnStart();
+
         services.Configure<RabbitMqOptions>(configuration.GetSection(RabbitMqOptions.SectionName));
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<AppUserOptions>(configuration.GetSection(AppUserOptions.SectionName));
@@ -37,5 +46,19 @@ public static class DependencyInjection
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 
         return services;
+    }
+
+    private static bool TryFromBase64(string value, out byte[] bytes)
+    {
+        try
+        {
+            bytes = Convert.FromBase64String(value);
+            return true;
+        }
+        catch (Exception)
+        {
+            bytes = Array.Empty<byte>();
+            return false;
+        }
     }
 }

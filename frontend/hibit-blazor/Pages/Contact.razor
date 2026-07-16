@@ -1,6 +1,5 @@
 @page "/contato"
 @inject IContactService ContactService
-@inject IAuthService AuthService
 @inject IOptions<ApiSettings> ApiOptions
 @using Hibit.Web.Content
 @using Hibit.Web.Models
@@ -150,10 +149,13 @@
 
         try
         {
-            await AuthService.EnsureAuthenticatedAsync();
             await ContactService.SubmitAsync(_formData);
             _successMessage = SiteContent.Contact.SuccessMessage;
             _formData = new ContactFormData();
+        }
+        catch (ContactSubmissionException ex)
+        {
+            _errorMessage = ex.Message;
         }
         catch (Exception)
         {

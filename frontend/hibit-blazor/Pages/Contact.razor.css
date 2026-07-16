@@ -151,47 +151,44 @@
   color: var(--color-text-secondary);
 }
 
-.soft-field input,
-.soft-field textarea {
+.soft-field ::deep input,
+.soft-field ::deep textarea {
   width: 100%;
-  padding: 1rem 1.15rem;
+  padding: 0.9rem 1.1rem;
   font-family: inherit;
   font-size: 1rem;
   color: var(--color-text-primary);
-  background: var(--color-bg-tertiary);
-  border: 1px solid transparent;
-  border-radius: 1.15rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: 0.85rem;
   outline: none;
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+    box-shadow 0.2s ease;
 }
 
-.soft-field textarea {
+.soft-field ::deep textarea {
   min-height: 10rem;
   resize: none;
   line-height: 1.6;
 }
 
-.soft-field input::placeholder,
-.soft-field textarea::placeholder {
+.soft-field ::deep input::placeholder,
+.soft-field ::deep textarea::placeholder {
   color: var(--color-text-muted);
 }
 
-.soft-field input:hover,
-.soft-field textarea:hover {
-  background: color-mix(in srgb, var(--color-bg-tertiary) 70%, var(--color-primary-light));
+.soft-field ::deep input:hover,
+.soft-field ::deep textarea:hover {
+  border-color: var(--color-border-medium);
 }
 
-.soft-field input:focus,
-.soft-field textarea:focus {
+.soft-field ::deep input:focus,
+.soft-field ::deep textarea:focus {
   background: var(--color-bg-primary);
-  border-color: rgba(34, 197, 94, 0.45);
-  box-shadow:
-    0 0 0 4px rgba(34, 197, 94, 0.12),
-    0 10px 30px rgba(15, 23, 42, 0.06);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
 }
 
 .soft-field ::deep .validation-message {
@@ -335,14 +332,16 @@
   transform: scale(1.01);
 }
 
-[data-theme="dark"] .soft-field input,
-[data-theme="dark"] .soft-field textarea {
+[data-theme="dark"] .soft-field ::deep input,
+[data-theme="dark"] .soft-field ::deep textarea {
   background: var(--color-bg-secondary);
+  border-color: var(--color-border-medium);
 }
 
-[data-theme="dark"] .soft-field input:focus,
-[data-theme="dark"] .soft-field textarea:focus {
-  background: var(--color-bg-tertiary);
+[data-theme="dark"] .soft-field ::deep input:focus,
+[data-theme="dark"] .soft-field ::deep textarea:focus {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-primary);
 }
 
 @media (max-width: 639px) {

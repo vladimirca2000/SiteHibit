@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using FluentAssertions;
@@ -72,14 +71,17 @@ public class ContactEndpointTests : IClassFixture<WebApplicationFactory<Program>
     }
 
     [Fact]
-    public async Task Post_Contact_Returns_Unauthorized_Without_Token()
+    public async Task Post_Contact_Returns_Accepted_Without_Token()
     {
+        TestMessagePublisher.Reset();
+
         var client = CreateClient();
         var payload = CreateValidPayload();
 
         var response = await client.PostAsJsonAsync("/api/contact", payload);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        TestMessagePublisher.LastPayload.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
@@ -88,7 +90,6 @@ public class ContactEndpointTests : IClassFixture<WebApplicationFactory<Program>
         TestMessagePublisher.Reset();
 
         var client = CreateClient();
-        await AuthenticateAsync(client);
 
         var response = await client.PostAsJsonAsync("/api/contact", CreateValidPayload());
 
@@ -100,7 +101,6 @@ public class ContactEndpointTests : IClassFixture<WebApplicationFactory<Program>
     public async Task Post_Contact_Returns_BadRequest_When_Consent_Missing()
     {
         var client = CreateClient();
-        await AuthenticateAsync(client);
 
         var payload = CreateValidPayload() with { ConsentGiven = false };
         var response = await client.PostAsJsonAsync("/api/contact", payload);
@@ -157,17 +157,6 @@ public class ContactEndpointTests : IClassFixture<WebApplicationFactory<Program>
         Subject: "Contato",
         Message: "Olá, preciso de ajuda.",
         ConsentGiven: true);
-
-    private static async Task AuthenticateAsync(HttpClient client)
-    {
-        var loginResponse = await client.PostAsJsonAsync(
-            "/api/auth/login",
-            new LoginRequestDto(TestUsername, TestPassword));
-
-        loginResponse.EnsureSuccessStatusCode();
-        var login = await loginResponse.Content.ReadFromJsonAsync<LoginResponseDto>();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login!.AccessToken);
-    }
 
     private sealed class TestEncryptionService : IEncryptionService
     {
